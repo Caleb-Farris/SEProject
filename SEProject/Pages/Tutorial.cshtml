@@ -1,0 +1,163 @@
+﻿@page 
+@model TutorialModel
+@{
+    ViewData["Title"] = "Tutorial";
+}
+
+<div id="initialBackendPolyString" data-poly="@Model.Poly"></div>
+<div class="tutorial">
+    <div class="row">
+        <div class="col-lg-3">
+            <div class="list-group">
+                <p id="FORMS-tab" class="list-group-item active">
+                    Recognizable Forms
+                </p>
+                <p id="RZT-tab" class="list-group-item">Rational Zero Test</p>
+                <p id="DESCARTES-tab" class="list-group-item">Descartes' Rule</p>
+                <p id="SYNTHETIC-tab" class="list-group-item">Synthetic Division</p>
+                <p id="FINAL-tab" class="list-group-item">Final</p>
+            </div>
+        </div>
+        <div class="col-lg-9">
+
+            <div class="panel panel-primary">
+                <div class="panel-heading">
+                    <h3 class="panel-title text-center">
+                        <i class="glyphicon glyphicon-education"></i>Recognizable Forms
+                    </h3>
+                </div>
+                <div class="panel-body lead">
+
+                    <div class="recognizable-forms-content">
+                        <p class="p-items">
+                            The first step is to recogize any forms that can be factored
+                            out of the equation.  These forms must be <em>memorized</em>.
+                        </p>
+                        <p class="p-items">
+                            Given the following polynomial:
+                        </p>
+                        <p class="p-items" id="formsInitPoly"></p>
+                        <p class="p-items">We can pull out the following forms:</p>
+                        <p id="formsDisplay" class="p-items"></p>
+                        <p class="p-items">Upon removing these elements, we are left with the remaining:</p>
+                        <p id="formsReduced" class="p-items"></p>
+                        <div class="input-group pull-right">
+                            <button id="FORMS-to-RZT" class="btn btn-primary btn">Continue</button>
+                        </div>
+                    </div>
+
+                    <div class="rational-zero-content hidden">
+                        <p class="p-items">
+                            The next major step is to apply the <b>Rational Zero Test</b>.
+                            The goal of this test is to locate all of the possible rational 
+                            roots of the polynomial.
+                        </p>
+                        <p class="p-items">
+                            We can determine all possible roots in a polynomial P(x) by taking 
+                            all multiples of the leading coefficient, denoted p, and dividing them 
+                            by all of the multiples of the constant term, q.
+                        </p>
+                        <p id="rzt-p-over-q" class="p-items"></p>
+                        <p class="p-items">
+                            By dividing each p by every q, we obtain the following terms:
+                        </p>
+                        <p id="rzt-pq" class="p-items">\[</p>
+                        <p id="skip-pq" class="p-items">
+                            The above set of numbers can be narrowed down to the following roots:
+                        </p>
+                        <p class="p-items" id="rzt-pq-reduced">\[</p>
+                        <p class="p-items">
+                            We have a list of all possible rational roots.  
+                            Now, we are on our way to some solutions!
+                        </p>
+                        <div class="input-group pull-right">
+                            <button id="RZT-to-DESCARTES" class="btn btn-primary btn">Continue</button>
+                        </div>
+                    </div>
+                    
+                    <div class="descartes-content hidden">
+                        <p class="p-items">
+                            The next step is to apply Descartes' rule.  This rule 
+                            is used to determine an upper bound on the number
+                            of positive or negative rational roots in a polynomial.
+                        </p>
+                        <p class="p-items">
+                            Descartes' rule is relatively simple.  To find the possible
+                            number of positive roots, count the number of sign changes in
+                            the polynomial.
+                        </p>
+                        <p id="descartes-poly-positive" class="p-items" ></p>
+                        <p class="p-items">
+                            The number of sign changes in this case is:  <b id="positive-sign-changes"></b>
+                        </p>
+                        <p id="no-positive" class="p-items">
+                            A key point in this step is to remember this is only an upper 
+                            bound.  The actual number of positive roots can be any multiple of two 
+                            less than this number.
+                        </p>
+                        <p class="p-items">
+                            <b id="possible-positive-roots"></b>
+                        </p>
+                        <p class="p-items">
+                            Now, we must consider the possible negative roots.  We must
+                            essentially repeat the process, but for f(-x).  This means that 
+                            we will be working with the same polynomial EXCEPT for any odd 
+                            powers of x.  Change the sign of these odd terms.
+                        </p>
+                        <p id="descartes-poly-negative" class="p-items"></p>
+                        <p class="p-items">
+                            The number of sign changes in this case is:  <b id="negative-sign-changes"></b>
+                        </p>
+                        <p id="no-negative" class="p-items">
+                            Just like with the positive roots, we must consider the possible 
+                            amount of negative roots.
+                        </p>
+                        <p class="p-items">
+                            <b id="possible-negative-roots"></b>
+                        </p>
+                        <p class="p-items">
+                            Now we have an idea of all the possible rational roots
+                            - from the Rational Zero Test - as well as possibilties
+                            for the number of positive or negative roots.
+                        </p>
+                        <div class="input-group pull-right">
+                            <button id="DESCARTES-to-SYNTHETIC" class="btn btn-primary btn">Continue</button>
+                        </div>
+                    </div>
+
+                    <div class="synthetic-content hidden">
+                        <p class="p-items">
+                            The next step is to use synthetic division with our list of
+                            accumlated roots.  The goal of synthetic division is to discover roots
+                            based on whether we can find linear factors of the polynomial.  If the
+                            factor divides evenly into the polynomial, with no remainder, it is a root.
+                        </p>
+                        <p class="p-items" id="syn-total-pos">/[</p>
+                        <p class="p-items" id="syn-total-neg"></p>
+                        <p class="p-items" id="syn-pos-roots"></p>
+                        <p class="p-items" id="syn-neg-roots"></p>/]
+                        <p class="p-items">
+                            First, write out the coefficients of the polynomial and choose a potential
+                            factor from the roots.
+                        </p>
+                        <div class="input-group pull-right">
+                            <button id="SYNTHETIC-to-FINAL" class="btn btn-primary btn">Continue</button>
+                        </div>
+                    </div>
+
+                    <div class="final-content hidden">
+                        <p class="p-items">
+                            We have reached the final stage.  * MORE TO COME *
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+

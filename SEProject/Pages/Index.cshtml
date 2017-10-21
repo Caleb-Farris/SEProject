@@ -1,0 +1,55 @@
+﻿@page 
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="jumbotron">
+    <div class="container">
+        <h1 class="text-center">
+            <i class="glyphicon glyphicon-apple"></i>Polynomial Root Finder <br />
+            <small>A tutorial for locating rational roots in polynomials.</small>
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <h3 class="text-center">
+        <i class="glyphicon glyphicon-hand-right"></i> 
+        Use x for variables and ^ for exponents. 
+        <b>
+            Example:  <var>2x^2 + 5x - 8</var> 
+        </b>
+    </h3>
+</div>
+
+<form method="GET" action="/Tutorial">
+    <div class="row">
+        <div class="col-lg-8 col-lg-offset-2" style="margin-top:  40px;">
+            <div class="input-group input-group-lg">
+                <input name="polyString" id="polyInput" type="text" class="form-control"
+                       placeholder="Enter polynomial here">
+                <div class="input-group-btn">
+                    <button id="polyInputButton" class="btn-lg btn-primary"
+                            type="submit">
+                        <i class="glyphicon glyphicon-search"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8 col-lg-offset-2" style="margin-top:  15px;">
+            <p id="polyInputError" class="text-danger text-center lead">
+            </p>
+        </div>
+    </div>
+</form>
+
+<footer class="footer">
+    <hr />
+    <div class="container">
+        <p class="text-left">&copy;<strong>2017 - PolyRoot</strong></p>
+    </div>
+</footer>
