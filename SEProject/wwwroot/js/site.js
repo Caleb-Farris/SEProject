@@ -266,7 +266,7 @@ function formsDisplay(polynomial) {
     let recognizedForms,
         reducedPoly;
 
-    displayAsBlock(polynomial, "#formsInitPoly");
+    displayAsBlock(polynomial, $("#formsInitPoly"));
 
     // Finding the special forms, separating them into variables as well
     // as the final reduced polynomial form
@@ -294,17 +294,23 @@ function RationalZeroTestDisplay(RZT) {
     // two are the same, then only displays once.
     this.display = function () {
         displayPQEquation(RZT.getPValues(), RZT.getQValues());
+        let $pq = $("#rzt-pq"),
+            $reduced = $("#rzt-pq-reduced");
+
         if (arraysAreEqual(RZT.getPositiveRoots(), RZT.getReducedPositiveRoots())) {
             $("#skip-pq").addClass("hidden");
-            iterateAndDisplay(RZT.getPositiveRoots(), "#rzt-pq");
+            setOpeningBlockDelimeter($pq);
+            iterateAndDisplay(RZT.getPositiveRoots(), $pq);
+            setClosingBlockDelimeter($pq);
         }
         else {
-            iterateAndDisplay(RZT.getPositiveRoots(), "#rzt-pq");
-            iterateAndDisplay(RZT.getReducedPositiveRoots(), "#rzt-pq-reduced");
+            ("\\[").appendTo($pq, $reduced);
+            iterateAndDisplay(RZT.getPositiveRoots(), $pq);
+            iterateAndDisplay(RZT.getReducedPositiveRoots(), $reduced);
+            ("\\]").appendTo($pq, $reduced);
         }
 
         // Necessary final laTex additions
-        $("#rzt-pq, #rzt-pq-reduced").append("\\]");
         MathJax.Hub.Queue(["Typeset", MathJax.Hub, "rzt-p-over-q, rzt-pq, rzt-pq-reduced"]);
     }
 
@@ -317,10 +323,10 @@ function RationalZeroTestDisplay(RZT) {
     function displayPQEquation(pValues, qValues) {
         // Displaying initial laTex, plus p/q 
         $("#rzt-p-over-q").append("\\[ {p\\over q} = {");
-        iterateAndDisplay(pValues, "#rzt-p-over-q");
+        iterateAndDisplay(pValues, $("#rzt-p-over-q"));
         // Displaying the line in between numerator and denominator
         $("#rzt-p-over-q").append("\\over");
-        iterateAndDisplay(qValues, "#rzt-p-over-q");
+        iterateAndDisplay(qValues, $("#rzt-p-over-q"));
         // Final, closing laTex
         $("#rzt-p-over-q").append("}\\]");
     }
@@ -329,14 +335,13 @@ function RationalZeroTestDisplay(RZT) {
     // Iterates through each possible root discovered by the RZT and displays it
     // with +- through laTex formatting.
     // -----------------------------------------------------------------------------
-    function iterateAndDisplay(roots, id) {
-        console.log("HERE WE ARE:  " + roots);
+    function iterateAndDisplay(roots, $id) {
         for (var i = 0; i < roots.length; ++i) {
             if (i === roots.length - 1) {
-                $(id).append("\\pm" + roots[i]);
+                $id.append("\\pm" + roots[i]);
             }
             else {
-                $(id).append("\\pm" + roots[i] + ", ");
+                $id.append("\\pm" + roots[i] + ", ");
             }
         }
     }
@@ -531,20 +536,26 @@ function RationalZeroTest(poly) {
 //------------------------------------------------------------------------------
 function DescartesDisplay(descartes) {
     this.display = function () {
-        displayAsBlock(descartes.getPolynomial(), "#descartes-poly-positive");
-        displayAsBlock(descartes.getNegPolynomial(), "#descartes-poly-negative");
+        displayAsBlock(descartes.getPolynomial(), $("#descartes-poly-positive"));
+        displayAsBlock(descartes.getNegPolynomial(), $("#descartes-poly-negative"));
 
-        // Positive roots
-        displayInline(descartes.getPosSignChanges(), "#positive-sign-changes");
-        noMultiplesHandler(descartes.getPosSignChanges(), "#no-positive");
-        $("#possible-positive-roots").append("\\[\\text{Positive Roots:  }" +
-            descartes.getPossiblePositives() + "\\]");
+        // POSITIVE
+        displayRootCount($("#positive-sign-changes"),
+            $("#no-positive"),
+            $("#possible-positive-roots"),
+            "Positive Roots",
+            descartes.getPosSignChanges(),
+            descartes.getPossiblePositives()
+        );
 
-        // Negative roots
-        displayInline(descartes.getNegSignChanges(), "#negative-sign-changes");
-        noMultiplesHandler(descartes.getNegSignChanges(), "#no-negative");
-        $("#possible-negative-roots").append("\\[\\text{Negative Roots:  }" +
-            descartes.getPossibleNegatives() + "\\]");
+        // NEGATIVE
+        displayRootCount($("#negative-sign-changes"),
+            $("#no-negative"),
+            $("#possible-negative-roots"),
+            "Negative Roots",
+            descartes.getNegSignChanges(),
+            descartes.getPossibleNegatives()
+        );
 
         // Final cleanup/LaTex operations
         MathJax.Hub.Queue(["Typeset", MathJax.Hub, "descartes-poly-positive,\
@@ -559,11 +570,21 @@ function DescartesDisplay(descartes) {
     // Handler function that displays when no multiples exist below the given
     // signChanges param, which represents total possible pos/neg roots.
     // -----------------------------------------------------------------------------
-    function noMultiplesHandler(signChanges, id) {
+    function noMultiplesHandler(signChanges, $id) {
         if (signChanges < 2) {
-            $(id).append("However, this doesn't apply in this case, as " +
+            $id.append("However, this doesn't apply in this case, as " +
                 signChanges + " has no lower multiples.");
         }
+    }
+
+    // -----------------------------------------------------------------------------
+    // Aids in displaying the positive or negative root counts
+    // -----------------------------------------------------------------------------
+    function displayRootCount($signChange, $noRoot, $possibleRoot, rootType,
+                              funcSignChanges, funcPossibleRoots) {
+        displayInline(funcSignChanges, $signChange);
+        noMultiplesHandler(funcSignChanges, $noRoot);
+        $possibleRoot.append("\\[\\text{" + rootType + ":  }" + funcPossibleRoots + "\\]");
     }
 
 }
@@ -651,51 +672,43 @@ function Descartes(poly) {
 //*********************************SYNTHETIC STAGE******************************
 //##############################################################################
 
+// -----------------------------------------------------------------------------
+//                      CLASS: SyntheticDivisionDisplay
+//
+// This class handles the display of the synthetic division that is performed on
+// each attempted root.  This class will occur asynchronously from within the 
+// SyntheticDivision class whenever a root is clicked by the user.
+// -----------------------------------------------------------------------------
+function SyntheticDivisionDisplay(root, polynomial, result) {
+    this.display = function () {
+        console.log("ROOT:" + root);
+        console.log("POLYNOMIAL:  " + polynomial);
+        console.log("RESULT:" + result);
+    }
+}
+
 // -------------------------CLASS:  Synthetic Division--------------------------
 // -----------------------------------------------------------------------------
-// The flow of the program picks up here from the DESCARTES stage, moving
-// towards the SYNTHETIC stage.  This function is triggered by the onClick button
-// from STAGE DESCARTES.
+// This class will handle the calculations for synthetic division.  Even though
+// this is the main purpose, the class will also contain 'onClick' handlers 
+// which will be responsible for creating SDDisplay objects.
 // -----------------------------------------------------------------------------
-function SyntheticDivision(polynomial, possibleRoots, numberRoots) {
+function SyntheticDivision(poly, possibleRoots, numberRoots) {
     // Creating duplicates/modified versions of the parameters for manipulation
-    let posRootCount = numberRoots.pos[numberRoots.pos.length - 1],
-        negRootCount = numberRoots.neg[numberRoots.neg.length - 1],
-        maxRoots = posRootCount + negRootCount,
+    let posRootCount = numberRoots.pos,
+        negRootCount = numberRoots.neg,
+        maxRoots = posRootCount[0] + negRootCount[0],
         posRoots = possibleRoots.pos,
         negRoots = possibleRoots.neg,
-        posResult,
-        negResult,
-        initialSetup = true,
         guessedPositive = [],
-        guessedNegative = [];
+        guessedNegative = [],
+        polynomial = poly;
 
     //changeDisplay(fromStage, toStage);
-    totalDisplay(posRootCount, negRootCount, "#syn-total-pos", "#syn-total-neg");
-    initialRootsDisplay(posRoots, negRoots, "#syn-pos-roots", "#syn-neg-roots", "#pos", "#neg");
-    /*
-
-
-    while (stillHasRoots(guessedPositive, guessedNegative)) {
-        if (initialSetup) {
-            posResult = setAsyncRootHandlers(posRoots, guessedPositive, "#pos");
-            negResult = setAsyncRootHandlers(negRoots, guessedNegative, "#neg");
-        }
-        else {
-            posResult = getAsyncRootHandlers
-        }
-
-
-        initialSetup = false;
-
-        if (posResult == 0) {
-
-        }
-
-        if (negResult == 0) {
-
-        }
-    }
+    totalDisplay(posRootCount, negRootCount, $("#syn-total-pos"), $("#syn-total-neg"));
+    initialRootsDisplay(posRoots, negRoots, "#syn-pos-roots", "#syn-neg-roots");
+    setAsyncRootHandlers(polynomial, posRoots, "#pos");
+    setAsyncRootHandlers(polynomial, negRoots, "#neg");
 
     console.log("POSITIVE COUNT:  " + posRootCount);
     console.log("NEGATIVE COUNT:  " + negRootCount);
@@ -703,78 +716,121 @@ function SyntheticDivision(polynomial, possibleRoots, numberRoots) {
     console.log("POSITVE ROOTS:  " + posRoots);
     console.log("NEGATIVE ROOTS:  " + negRoots);
 
-    // IF maxRoots == 0 ...
+    // Final cleanup/LaTex operations
+    MathJax.Hub.Queue(["Typeset", MathJax.Hub, "syn-total-pos, syn-total-neg"]);
 
-    displayRecap(posRootCount, negRootCount, posRoots, negRoots, guessedPositive, guessedNegative);
-
-
-    */
-}
-
-function displayRecap(posRootCount, negRootCount, posRoots, negRoots, guessedPos, guessedNeg) {
-    $("#syn-total-pos").append("\\text{Pos. Root Count:  }" + posRootCount + "\\\\");
-    $("#syn-total-neg").append("\\text{Neg. Root Count:  }" + negRootCount + "\\\\");
-    $("#syn-pos-roots").append("\\text{Possible Positives:  }" +
-        displayRoots(posRoots, guessedPos, "#syn-pos-roots", "#pos"));
-    $("#syn-neg-roots").append("\\text{Possible Negatives:  }" +
-        displayRoots(negRoots, guessedNeg, "#syn-neg-roots", "#neg"));
-}
-
-//------------------------------------------------------------------------------
-//  Used to display the total count for both pos and neg roots.
-//------------------------------------------------------------------------------
-function totalDisplay(posRootCount, negRootCount, posId, negId) {
-    $(posId).append("\\text{Pos. Root Count:  }" + posRootCount + "\\\\");
-    $(negId).append("\\text{Neg. Root Count:  }" + negRootCount + "\\\\");
-}
-
-//------------------------------------------------------------------------------
-//  Used to set the initial ID values for the possible roots in the html
-//------------------------------------------------------------------------------
-function initialRootsDisplay(posRoots, negRoots, posParent, negParent, posId, negId) {
-    for (let i = 0; i < posRoots.length; ++i) {
-        $("<span>" + posRoots[i] + "</span>").appendTo(posParent).attr(
-            "id", posId + i);
+    //------------------------------------------------------------------------------
+    //  Used to display the total count for both pos and neg roots.
+    //------------------------------------------------------------------------------
+    function totalDisplay(posRootCount, negRootCount, $posId, $negId) {
+        $posId.append("\\[\\text{Pos. Root Count:  }" + posRootCount + "\\]");
+        $negId.append("\\[\\text{Neg. Root Count:  }" + negRootCount + "\\]");
     }
 
-    for (let i = 0; i < negRoots.length; ++i) {
-        $("<span>" + negRoots[i] + "</span>").appendTo(negParent).attr(
-            "id", negId + i);
-    }
-}
+    //------------------------------------------------------------------------------
+    //  Used to set the initial ID values for the possible roots in the html
+    //  NOTE:  This does not use MathJax to display.
+    //------------------------------------------------------------------------------
+    function initialRootsDisplay(posRoots, negRoots, posParentId, negParentId) {
+        $(posParentId).append("Pos:");
+        for (let i = 0; i < posRoots.length; ++i) {
+            $("<span>\\(" + posRoots[i] + "\\)</span>").appendTo(posParentId).attr({
+                "id": "pos" + i,
+                "class": "span-space"
+            });
+        }
 
-function cancelRoots(roots, guessed, id) {
-    for (let i = 0; i < roots.length; ++i) {
-        if (guessed[i]) {
-            $(id + i).text("\\(\\cancel{" + roots[i] + "}\\)")
+        $(negParentId).append("Neg:");
+        for (let i = 0; i < negRoots.length; ++i) {
+            $("<span>\\(" + negRoots[i] + "\\)</span>").appendTo(negParentId).attr({
+                "id": "neg" + i,
+                "class": "span-space"
+            });
         }
     }
-}
 
-function setAsyncRootHandlers(roots, guessed, id) {
-    for (let i = 0; i < roots.length; ++i) {
-        guessed.push(false);
-        $(id + i).on("click", function () {
-            return i;
-        });
+    //--------------------------------------------------------------------------
+    //  Used to mark out roots that have already been guessed 
+    //--------------------------------------------------------------------------
+    function cancelRoots(roots, guessed, id) {
+        for (let i = 0; i < roots.length; ++i) {
+            if (guessed[i]) {
+                $(id + i).text("\\(\\cancel{" + roots[i] + "}\\)")
+            }
+        }
     }
-}
 
-function stillHasRoots(pos, neg) {
-    pos.forEach(function (guess) {
-        if (!guess) {
-            return true;
+    //--------------------------------------------------------------------------
+    //  Sets all of the 'onClick' handlers for each root available.  The handlers
+    //  are fired based on which numbers are clicked.
+    //--------------------------------------------------------------------------
+    function setAsyncRootHandlers(polynomial, roots, id) {
+        for (let i = 0; i < roots.length; ++i) {
+            let root = roots[i];
+            $(id + i).on("click", function () {
+                let result = synDivide(polynomial, root);
+
+                if (root > 0) {
+                    guessedPositive.push(root);
+                }
+                else if (root < 0) {
+                    guessedNegative.push(root);
+                }
+                else { // Did we handle this???
+                    // ????
+                }
+
+                // Displaying based on the current choice
+                let synDisplay = new SyntheticDivisionDisplay(root, polynomial, result);
+                synDisplay.display();
+
+                let finished = updateRoots(result, roots, guessedPositive, guessedNegative);
+                if (finished) {
+                    // CANCEL ALL, return roots
+                }
+                else {
+                    // CANCEL only ROOT
+                    // UPDATE GUESSES
+                }
+            });
         }
-    });
+    }
 
-    neg.forEach(function (guess) {
-        if (!guess) {
-            return true;
+    //--------------------------------------------------------------------------
+    //  Keeps up with the state of the guesses
+    //--------------------------------------------------------------------------
+    function updateRoots(result, roots, guessedPositive, guessedNegative) {
+        // STUB - finish later
+        return false;
+    }
+
+
+    //--------------------------------------------------------------------------
+    //  Performs synthetic division on the polynomial and returns the remainder
+    //--------------------------------------------------------------------------
+    function synDivide(polynomial, root) {
+        let top = toMatrix(polynomial),
+            middle = [],
+            bottom = [],
+            N = Algebrite.deg(polynomial);
+
+        for (let i = 0; i <= N; ++i) {
+            if (i === 0) {
+                bottom.push(top[i]);
+                middle.push(bottom[i] * root);
+            }
+            else if (i === N) {
+                bottom.push(top[i] - middle[i - 1]);
+            }
+            else {
+                bottom.push(top[i] - middle[i - 1]);
+                middle.push(bottom[i] * root);
+            }
         }
-    });
 
-    // If reach this point, then all roots choices have been exhausted
-    return false;
+        // This is the last position: the remainder
+        return bottom[N];
+    }
 }
 
 //##############################################################################
@@ -968,15 +1024,43 @@ var main = function () {
 // -----------------------------------------------------------------------------
 // Used to display a numerical value or expression in LaTex form, block format
 // -----------------------------------------------------------------------------
-function displayAsBlock(expression, id) {
-    $(id).append("\\[{" + expression + "}\\]");
+function displayAsBlock(expression, $id) {
+    $id.append("\\[{" + expression + "}\\]");
 }
 
 // -----------------------------------------------------------------------------
 // Used to display a numerical value or expression in LaTex form, inline format
 // -----------------------------------------------------------------------------
-function displayInline(expression, id) {
-    $(id).append("\\(" + expression + "\\)");
+function displayInline(expression, $id) {
+    $id.append("\\(" + expression + "\\)");
+}
+
+// -----------------------------------------------------------------------------
+// Appends an opening BLOCK formatter for LaTex representation
+// -----------------------------------------------------------------------------
+function setOpeningBlockDelimeter($id) {
+    $id.append("\\[");
+}
+
+// -----------------------------------------------------------------------------
+// Appends a closing BLOCK formatter for LaTex representation
+// -----------------------------------------------------------------------------
+function setClosingBlockDelimeter($id) {
+    $id.append("\\]");
+}
+
+// -----------------------------------------------------------------------------
+// Appends an opening INLINE formatter for LaTex representation
+// -----------------------------------------------------------------------------
+function setOpeningInlineDelimeter($id) {
+    $id.append("\\(");
+}
+
+// -----------------------------------------------------------------------------
+// Appends a closing INLINE formatter for LaTex representation
+// -----------------------------------------------------------------------------
+function setClosingInlineDelimeter($id) {
+    $id.append("\\)");
 }
 
 // -----------------------------------------------------------------------------
