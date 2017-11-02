@@ -3,6 +3,12 @@
   "name": "asp.net",
   "private": true,
   "devDependencies": {
-    "algebrite": "1.1.2"
+    "algebrite": "1.1.2",
+    "jasmine": "^2.8.0",
+    "karma": "^1.7.1",
+    "karma-chrome-launcher": "^2.2.0",
+    "karma-firefox-launcher": "^1.0.1",
+    "karma-jasmine": "^1.1.0",
+    "karma-requirejs": "^1.1.0"
   }
 }

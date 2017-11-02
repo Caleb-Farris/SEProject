@@ -9,6 +9,7 @@
     "mathjs": "v3.16.3",
     "MathJax": "2.7.2",
     "flo-poly": "1.0.0",
-    "polynomial.js": "v1.2.0"
+    "polynomial.js": "v1.2.0",
+    "jasmine-jquery": "2.1.1"
   }
 }
