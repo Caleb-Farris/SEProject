@@ -188,7 +188,7 @@ function InputValidator() {
         try {
             let initParse = math.simplify(math.parse(poly)).toString();
             console.log("INITIAL PARSE:  " + initParse);
-            let corrected = addMultSigns(initParse);
+            let corrected = sanitizeInput(initParse);
             console.log("CORRECTED: " + corrected);
             let expanded = Algebrite.run(corrected);
             console.log("EXPANDED: " + expanded);
@@ -1550,13 +1550,17 @@ function removeMultSigns(string) {
 // simplified, it still contains values that are adjacent to each other such
 // as 7x(x + 5).  CAS cannot seem to do this properly, so this will have to 
 // be implemented to make sure the VALUES are correct if a user decides to input
-// a certain way.
+// a certain way.  * It also removes redundant signs, such as '8 + -5' since 
+// these CAS often cannot handle this as well.  It's ridiculous that this has to
+// be done, but whatever.
 // -----------------------------------------------------------------------------
-function addMultSigns(string) {
+function sanitizeInput(string) {
     let stack = "",
         added = 0,
         x = /[xX]/,
         num = /[0-9]/,
+        plus = /[+]/,
+        minus = /[-]/,
         leftParen = /\(/,
         rightParen = /\)/,
         char = "",
@@ -1583,6 +1587,11 @@ function addMultSigns(string) {
                 stack += "*";
             }
         }
+        else if (plus.test(char)) {
+            if (minus.test(next)) {
+                stack = stack.slice(0, -1); // cuts off last char
+            }
+        }
     }
 
     // Making sure to add final character
@@ -1596,9 +1605,10 @@ function addMultSigns(string) {
 // converted to a matrix.
 // -----------------------------------------------------------------------------
 function prepareForMatrix(poly) {
-    let parse = math.simplify(math.parse(poly)).toString();
+    let parse = math.simplify(poly).toString();
     console.log("PARSE:  " + parse);
-    let corrected = addMultSigns(parse);
+    parse = removeWhiteSpace(parse);
+    let corrected = sanitizeInput(parse);
     console.log("CORRECTED IN PREP: " + corrected);
     let expanded = Algebrite.run(corrected);
     console.log("EXPANDED IN PREP: " + expanded);
