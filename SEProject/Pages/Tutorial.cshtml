@@ -49,21 +49,24 @@
                     <div class="rational-zero-content hidden">
                         <p class="p-items">
                             The next major step is to apply the <b>Rational Zero Test</b>.
-                            The goal of this test is to locate all of the possible rational 
-                            roots of the polynomial.
+                            The goal of this test is to locate all of the possible 
+                            rational roots of the polynomial.
                         </p>
                         <p class="p-items">
-                            We can determine all possible roots in a polynomial P(x) by taking 
-                            all multiples of the leading coefficient, denoted p, and dividing them 
-                            by all of the multiples of the constant term, q.
+                            We can determine all possible roots in a polynomial 
+                            P(x) by taking all multiples of the leading coefficient, 
+                            denoted p, and dividing them by all of the multiples 
+                            of the constant term, q.
                         </p>
                         <p id="rzt-p-over-q" class="p-items"></p>
                         <p class="p-items">
-                            By dividing each p by every q, we obtain the following terms:
+                            By dividing each p by every q, we obtain the following 
+                            terms:
                         </p>
                         <p id="rzt-pq" class="p-items"></p>
                         <p id="skip-pq" class="p-items">
-                            The above set of numbers can be narrowed down to the following roots:
+                            The above set of numbers can be narrowed down to the 
+                            following roots:
                         </p>
                         <p class="p-items" id="rzt-pq-reduced"></p>
                         <p class="p-items">
@@ -82,35 +85,36 @@
                             of positive or negative rational roots in a polynomial.
                         </p>
                         <p class="p-items">
-                            Descartes' rule is relatively simple.  To find the possible
-                            number of positive roots, count the number of sign changes in
-                            the polynomial.
+                            Descartes' rule is relatively simple.  To find the 
+                            possible number of positive roots, count the number 
+                            of sign changes in the polynomial.
                         </p>
                         <p id="descartes-poly-positive" class="p-items" ></p>
                         <p class="p-items">
                             The number of sign changes in this case is:  <b id="positive-sign-changes"></b>
                         </p>
                         <p id="no-positive" class="p-items">
-                            A key point in this step is to remember this is only an upper 
-                            bound.  The actual number of positive roots can be any multiple of two 
-                            less than this number.
+                            A key point in this step is to remember this is only 
+                            an upper bound.  The actual number of positive roots 
+                            can be any multiple of two less than this number.
                         </p>
                         <p class="p-items">
                             <b id="possible-positive-roots"></b>
                         </p>
                         <p class="p-items">
-                            Now, we must consider the possible negative roots.  We must
-                            essentially repeat the process, but for f(-x).  This means that 
-                            we will be working with the same polynomial EXCEPT for any odd 
-                            powers of x.  Change the sign of these odd terms.
+                            Now, we must consider the possible negative roots.  
+                            We must essentially repeat the process, but for f(-x).  
+                            This means that we will be working with the same 
+                            polynomial EXCEPT for any odd powers of x.  Change 
+                            the sign of these odd terms.
                         </p>
                         <p id="descartes-poly-negative" class="p-items"></p>
                         <p class="p-items">
                             The number of sign changes in this case is:  <b id="negative-sign-changes"></b>
                         </p>
                         <p id="no-negative" class="p-items">
-                            Just like with the positive roots, we must consider the possible 
-                            amount of negative roots.
+                            Just like with the positive roots, we must consider 
+                            the possible amount of negative roots.
                         </p>
                         <p class="p-items">
                             <b id="possible-negative-roots"></b>
@@ -126,36 +130,126 @@
                     </div>
 
                     <div class="synthetic-content hidden">
-                        <p class="p-items">
-                            The next step is to use synthetic division with our list of
-                            accumlated roots.  The goal of synthetic division is to discover roots
-                            based on whether we can find linear factors of the polynomial.  If the
-                            factor divides evenly into the polynomial, with no remainder, it is a root.
-                        </p>
-                        <ul class="list-unstyled">
-                            <li class="p-items" id="syn-total-pos"></li>
-                            <li class="p-items" id="syn-total-neg"></li>
-                            <li class="p-items text-center" id="syn-pos-roots"></li>
-                            <li class="p-items text-center" id="syn-neg-roots"></li>
-                        </ul>
-                        <p class="p-items">
-                            First, write out the coefficients of the polynomial and choose a potential
-                            factor from the roots.
-                        </p>
+                        <div class="syn-init-content">
+                            <p class="p-items syn-init-erasable">
+                                The next step is to use synthetic division with our 
+                                list of accumulated roots.  The goal of synthetic 
+                                division is to find linear factors in a polynomial 
+                                p(x) of the form x - r.  If x - r divides evenly 
+                                into p(x) with no remainder, it is a root.  Let's 
+                                look at what we have:
+                            </p>
+                            <ul class="list-unstyled syn-recap">
+                                <li class="p-items" id="syn-total-pos"></li>
+                                <li class="p-items" id="syn-total-neg"></li>
+                                <li class="p-items text-center syn-draw-erasable" id="syn-pos-roots"></li>
+                                <li class="p-items text-center syn-draw-erasable" id="syn-neg-roots"></li>
+                            </ul>
+
+                            <p class="p-items syn-init-erasable">
+                                First, we'll need to choose a root.  This will 
+                                represent r.  Learning which roots to choose will 
+                                become more intuitive with practice.  Go ahead,
+                                click on one of the positive or negative roots above.
+                            </p>
+                        </div>
+                        <div class="syn-draw-content hidden">
+                            <p id="syn-step1" class="p-items">
+                                The root, r, is placed in the section to the left.  
+                                Each coefficient of the polynomial is also written 
+                                to the right.  A preliminary step is to always drop 
+                                the first term.
+                            </p>
+                            <p id="syn-init-drawing" class="p-items syn-draw-erasable">
+
+                            </p>
+                            <p id="syn-step2" class="p-items">
+                                Next, multiply this value by r and place the result 
+                                below the next term of the polynomial.
+                            </p>
+                            <p id="syn-2nd-drawing" class="p-items syn-draw-erasable">
+
+                            </p>
+                            <p id="syn-step3" class="p-items syn-degree1-skippable">
+                                Now we add the terms in this column and place the 
+                                result in the bottom row.
+                            </p>
+                            <p id="syn-degree1-handler" class="p-items hidden syn-reinit">
+                                Now we add the terms in this column and place the
+                                result in the bottom row. The final, red number is 
+                                the remainder, while the numbers preceding it represent 
+                                the quotient.  When the remainder is 0, you have found a root!
+                            </p>
+                            <p id="syn-3rd-drawing" class="p-items syn-draw-erasable">
+
+                            </p>
+                            <p id="syn-step4" class="p-items syn-degree1-skippable">
+                                Repeat this process until the bottom row is full.  
+                                The final, red number is the remainder, while the 
+                                numbers preceding it represent the quotient.  When
+                                the remainder is 0, you have found a root!
+                            </p>
+                            <p id="syn-final-drawing" class="p-items syn-draw-erasable syn-degree1-skippable">
+
+                            </p>
+                            <p id="syn-found-root" class="p-items hidden syn-reinit">
+                                Great job!  The number you chose was a root.  Now,
+                                the process will continue, but synthetic division
+                                will be carried out on the quotient.  Please 
+                                choose another root above.
+                            </p>
+                            <p id="syn-no-root" class="p-items hidden syn-reinit">
+                                No luck this time.  Choose another root above to 
+                                try again.
+                            </p>
+                            <p id="syn-summary" class="p-items hidden syn-reinit">
+                                Great job!  The number you chose was a root. <br />
+                                
+                                Synthetic division can no longer be performed.  The roots
+                                found are: 
+                            </p>
+                            <p id="syn-actual-roots" class="p-items syn-draw-erasable">
+
+                            </p>
+                        </div>
+
                         <div class="input-group pull-right">
-                            <button id="SYNTHETIC-to-FINAL" class="btn btn-primary btn">Continue</button>
+                            <button id="SYNTHETIC-to-FINAL" class="btn btn-primary btn hidden syn-reinit">Continue</button>
                         </div>
                     </div>
 
                     <div class="final-content hidden">
                         <p class="p-items">
-                            We have reached the final stage.  * MORE TO COME *
+                            All processes have been completed for the polynomial:
+                        </p>
+                        <p id="final-poly" class="p-items">
+
+                        </p>
+                        <p class="p-items">
+                            And the following rational roots have been discovered:
+                        </p>
+                        <p id="final-roots" class="p-items">
+
+                        </p>
+                        <p class="p-items">
+                            In summary, any recognized forms are extracted from
+                            the polynomial.  Next, the Rational Zero Test is used 
+                            to find all possible roots.  Descartes' Rule of Signs 
+                            is then used to determine the number of positive or 
+                            negative roots.  Based on the information gathered, 
+                            synthetic division is then performed until the roots 
+                            are found.
+                        </p>
+                        <p class="p-items">
+                            Please renavigate the steps by clicking the tabs to
+                            the left, or <a asp-page="/Index">click here</a> to 
+                            enter another polynomial.
                         </p>
                     </div>
 
                 </div>
             </div>
-        </div>
+        </div> 
     </div>
 </div>
 

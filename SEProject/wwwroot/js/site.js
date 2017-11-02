@@ -8,8 +8,9 @@
 
 // Initial constant declarations.  The regex is used for input validation, 
 // whereas the rest are enumerations of the stages of the program plus the 
-// content html for each stage.  The regex is complicated but necessary.
-const REGEX_INPUT = /^(\(?[+-]?\(?(\(?((\d+)?([xX])(\^\d+)?)(\)|\)\^\d+)?|\(?(\d+(\^\d+)?)(\)|\)\^\d+)?)(\)|\)\^\d+)?)+(\)|\)\^\d+)?$/,
+// content html for each stage.
+
+const REGEX = /[^0-9x^()+*/-]/,
     FORMS = 0,
     RZT = 1,
     DESCARTES = 2,
@@ -143,11 +144,11 @@ function InputValidator() {
     // Return the user input if it is valid, otherwise returns false
     // -----------------------------------------------------------------------------
     function getPolynomialInput() {
-        let $input = $("#polyInput").val();
-        let isValidInput = checkPolynomialInput($input);
+        let input = $("#polyInput").val();
+        let isValidInput = checkPolynomialInput(input);
 
         if (isValidInput) {
-            return $input;
+            return input;
         }
         else {
             return false;
@@ -162,10 +163,12 @@ function InputValidator() {
             isValid = false;
 
         try {
-            math.parse(inputData);
+            let parsed = math.parse(inputData);
+            console.log("PARSED: " + parsed);
             console.log("INPUT:  " + inputData);
+            console.log("REGEX:  " + REGEX.test(inputData))
 
-            if (REGEX_INPUT.test(inputData)) {
+            if (!(REGEX.test(inputData))) {
                 isValid = true;
             }
         }
@@ -180,16 +183,31 @@ function InputValidator() {
     // Returns true if the polynomial input has rational roots, false otherwise
     // -----------------------------------------------------------------------------
     function checkForRoots(poly) {
-        let hasRoot = false,
-            polyMatrix = toMatrix(poly); // convert to matrix form
+        let hasRoot = false;
 
-        console.log("POLYMATRIX:  " + polyMatrix);
-        console.log("TEST LENGTH:  " + FloPoly.allRoots(polyMatrix).length);
-        console.log("TEST 0 EVAL:  " + FloPoly.evaluateAt0(polyMatrix));
+        try {
+            let initParse = math.simplify(math.parse(poly)).toString();
+            console.log("INITIAL PARSE:  " + initParse);
+            let corrected = addMultSigns(initParse);
+            console.log("CORRECTED: " + corrected);
+            let expanded = Algebrite.run(corrected);
+            console.log("EXPANDED: " + expanded);
+            let polyMatrix = toMatrix(expanded);
 
-        // If roots are returned from allRoots(), then rational roots exist
-        if (FloPoly.allRoots(polyMatrix).length > 0 || FloPoly.evaluateAt0(polyMatrix) == 0) {
-            hasRoot = true;
+            let rootTest = FloPoly.allRoots(polyMatrix).length,
+                zeroRootTest = FloPoly.evaluateAt0(polyMatrix);
+
+            console.log("POLYMATRIX:  " + polyMatrix);
+            console.log("TEST LENGTH:  " + rootTest);
+            console.log("TEST 0 EVAL:  " + zeroRootTest);
+
+            // If roots are returned from allRoots(), then rational roots exist
+            if (rootTest > 0 || zeroRootTest == 0) {
+                hasRoot = true;
+            }
+        }
+        catch (error) {
+            console.log(error);
         }
 
         return hasRoot;
@@ -236,11 +254,7 @@ function findRecognizedForms(polynomial) {
 // Used to locate the recognized form:  *DIFFERENCE OF TWO SQUARES*
 // -----------------------------------------------------------------------------
 function parseDifferenceTwoSquares(expression) {
-        //var coefficients = polynomial.filter(function (node, path, parent) {
-    //    return parent !== null && parent.op === "^" && node.isSymbolNode;
-    //});
-    //console.log(coefficients);
-    //expression.traverse()
+
 }
 
 // -----------------------------------------------------------------------------
@@ -266,7 +280,8 @@ function formsDisplay(polynomial) {
     let recognizedForms,
         reducedPoly;
 
-    displayAsBlock(polynomial, $("#formsInitPoly"));
+    let poly = prepareForMatrix(polynomial);
+    displayAsBlock(poly, $("#formsInitPoly"));
 
     // Finding the special forms, separating them into variables as well
     // as the final reduced polynomial form
@@ -304,10 +319,12 @@ function RationalZeroTestDisplay(RZT) {
             setClosingBlockDelimeter($pq);
         }
         else {
-            ("\\[").appendTo($pq, $reduced);
+            setOpeningBlockDelimeter($pq);
+            setOpeningBlockDelimeter($reduced);
             iterateAndDisplay(RZT.getPositiveRoots(), $pq);
             iterateAndDisplay(RZT.getReducedPositiveRoots(), $reduced);
-            ("\\]").appendTo($pq, $reduced);
+            setClosingBlockDelimeter($pq);
+            setClosingBlockDelimeter($reduced);
         }
 
         // Necessary final laTex additions
@@ -365,7 +382,7 @@ function RationalZeroTest(poly) {
         allReducedRoots;
 
     // CONSTRUCTOR
-    polynomial = poly;
+    polynomial = toMatrix(prepareForMatrix(poly));
     pValues = initiatePValues();
     qValues = initiateQValues();
     positiveRoots = posPOverQ();
@@ -397,7 +414,7 @@ function RationalZeroTest(poly) {
     // the calculations necessary to produce the P and Q value as well as the 
     // possible roots.  As such, they are not callable outside of this class.
     function initiatePValues() {
-        let constant = Algebrite.coeff(polynomial, 0),
+        let constant = polynomial[polynomial.length - 1],
             multiplesP;
 
         console.log("CONSTANT: " + constant);
@@ -407,7 +424,7 @@ function RationalZeroTest(poly) {
     }
 
     function initiateQValues() {
-        let leading = Algebrite.leading(polynomial),
+        let leading = polynomial[0],
             multiplesQ;
 
         console.log("LEADING: " + leading);
@@ -427,7 +444,12 @@ function RationalZeroTest(poly) {
         if (pValues.length > 0 && qValues.length > 0) {
             pValues.forEach(function (P) {
                 qValues.forEach(function (Q) {
-                    possibleRoots.add(P / Q);
+                    if ((P / Q) % 1 === 0) {
+                        possibleRoots.add(P / Q);
+                    }
+                    else {
+                        possibleRoots.add(Math.round10((P / Q), -4));
+                    }
                 });
             });
         }
@@ -446,7 +468,12 @@ function RationalZeroTest(poly) {
         if (pValues.length > 0 && qValues.length > 0) {
             pValues.forEach(function (P) {
                 qValues.forEach(function (Q) {
-                    possibleRoots.push(P / Q);
+                    if ((P / Q) % 1 === 0) {
+                        possibleRoots.push(P / Q);
+                    }
+                    else {
+                        possibleRoots.push(Math.round10((P / Q), -4));
+                    }
                 });
             });
         }
@@ -465,9 +492,16 @@ function RationalZeroTest(poly) {
         if (pValues.length > 0 && qValues.length > 0) {
             pValues.forEach(function (P) {
                 qValues.forEach(function (Q) {
-                    possiblePosRoots.add(P / Q);   // Adds the positive version
-                    possibleNegRoots.add(-(P / Q)) // Adds the negative version
-                    // Given these numbers are NOT in the set
+                    if ((P / Q) % 1 === 0) {
+                        possiblePosRoots.add(P / Q);   // Adds the positive version
+                        possibleNegRoots.add(-(P / Q)) // Adds the negative version
+                        // Given these numbers are NOT in the set
+                    }
+                    else {
+                        possiblePosRoots.add(Math.round10((P / Q), -4));   
+                        possibleNegRoots.add(Math.round10(-(P / Q), -4)) 
+                    }
+
                 });
             });
         }
@@ -484,9 +518,8 @@ function RationalZeroTest(poly) {
     // optimized, but for now, it serves its purpose.
     // -----------------------------------------------------------------------------
     function getMultiples(number) {
-        // Handle case of negative numbers.  Also, the number is converted to 
-        // string because it was parsed using Algebrite and was an object
-        number = math.abs(number.toString());
+        // Handle case of negative numbers. 
+        number = math.abs(number);
 
         if (number == 1 || number == 0) {
             return [number];
@@ -610,7 +643,7 @@ function Descartes(poly) {
         possibleNegatives;
 
     // CONSTRUCTOR
-    polynomial = poly;
+    polynomial = prepareForMatrix(poly);
     posPolyMatrix = toMatrix(polynomial);
     negPolyMatrix = FloPoly.reflectAboutYAxis(toMatrix(polynomial));
     negPolynomial = toPolynomial(negPolyMatrix);
@@ -678,12 +711,231 @@ function Descartes(poly) {
 // This class handles the display of the synthetic division that is performed on
 // each attempted root.  This class will occur asynchronously from within the 
 // SyntheticDivision class whenever a root is clicked by the user.
+// The parameter 'syn' holds a current reference to the state of the 
+// SyntheticDivision object.
 // -----------------------------------------------------------------------------
-function SyntheticDivisionDisplay(root, polynomial, result) {
+function SyntheticDivisionDisplay(syn, results) {
+
+    //--------------------------------------------------------------------------
+    //  Handles most basic displays when the user clicks on a root.  The boolean
+    //  param in 'displayHelper' signals whether this is final display or not.
+    //--------------------------------------------------------------------------
     this.display = function () {
-        console.log("ROOT:" + root);
-        console.log("POLYNOMIAL:  " + polynomial);
-        console.log("RESULT:" + result);
+        displayHelper(syn, results, false);
+    }
+
+    //--------------------------------------------------------------------------
+    //  Handles the display when all roots have been found.  The boolean param 
+    //  in 'displayHelper' signals whether this is final display or not.
+    //--------------------------------------------------------------------------
+    this.finalDisplay = function () {
+        displayHelper(syn, results, true);
+    }
+
+    //--------------------------------------------------------------------------
+    //  Used to mark out roots that have already been guessed 
+    //--------------------------------------------------------------------------
+    function cancelRoots(guessedIds) {
+        guessedIds.forEach(function ($id) {
+            $id.text("\\(\\cancel{" + $id.data("root") + "}\\)");
+        });
+    }
+
+    //--------------------------------------------------------------------------
+    //  Used to display the total count for both pos and neg roots.
+    //--------------------------------------------------------------------------
+    function totalDisplay(posRootCount, negRootCount, $posId, $negId) {
+        $posId.text("\\[\\text{Pos. Root Count:  }" + posRootCount + "\\]");
+        $negId.text("\\[\\text{Neg. Root Count:  }" + negRootCount + "\\]");
+    }
+
+    //--------------------------------------------------------------------------
+    //  Aids with display since both 'display' and 'finalDisplay' contain 
+    //  similar protocols.
+    //--------------------------------------------------------------------------
+    function displayHelper(syn, results, isFinal) {
+        // Recap section and reinitializing
+        totalDisplay(syn.getPosRootCount(), syn.getNegRootCount(),
+            $("#syn-total-pos"), $("#syn-total-neg"));
+        resetDisplay();
+
+        if (isFinal) {
+            // since finished, cancelling all other root choices
+            var temp = [];
+            temp.push.apply(temp, syn.getRemainingIds());
+            temp.push.apply(temp, syn.getGuessedIds());
+            cancelRoots(temp);
+        }
+        else {
+            cancelRoots(syn.getGuessedIds());
+        }
+
+        // Synthetic division drawing section
+        let degree = results.top.length - 1,
+            positions = getPositions(degree);
+
+        drawSynthetic(results, positions, degree);
+
+        // Handling conclusion 
+        if (results.remainder === 0 && isFinal) {
+            $("#syn-summary").removeClass("hidden");
+            displayAsBlock(syn.getActualRoots(), $("#syn-actual-roots"));
+        }
+        else if (results.remainder === 0) {
+            $("#syn-found-root").removeClass("hidden");
+        }
+        else { // still roots left
+            $("#syn-no-root").removeClass("hidden");
+        }
+
+        MathJax.Hub.Queue(["Typeset", MathJax.Hub, "syn-total-pos,    \
+                                                    syn-total-neg,    \
+                                                    syn-init-drawing, \
+                                                    syn-2nd-drawing,  \
+                                                    syn-3rd-drawing,  \
+                                                    syn-final-drawing,\
+                                                    syn-actual-roots"]);
+    }
+
+    //--------------------------------------------------------------------------
+    //  Determines the positioning that will be displayed in the syn division 
+    //  drawing.  This is based on TeX array positioning.
+    //--------------------------------------------------------------------------
+    function getPositions(N) {
+        let position = "";
+
+        while (N >= 0) {
+            position += "r";
+            N -= 1;
+        }
+
+        return position;
+    }
+
+    //--------------------------------------------------------------------------
+    //  Sets up each term for synthetic division display.  Based on TeX.
+    //--------------------------------------------------------------------------
+    function getTerms(matrix) {
+        let line = "";
+
+        for (let i = 0; i < matrix.length; ++i) {
+            if (i === matrix.length - 1) {
+                line += matrix[i];
+            }
+            else {
+                line += matrix[i] + " & ";
+            }
+        }
+
+        return line;
+    }
+
+    //--------------------------------------------------------------------------
+    //  Used to fill the rest of a line with '&' during synthetic division (TeX).
+    //--------------------------------------------------------------------------
+    function padLine(length) {
+        let line = "";
+
+        while (length > 0) {
+            line += " & ";
+            length -= 1;
+        }
+
+        return line;
+    }
+
+    //--------------------------------------------------------------------------
+    //  Displays the synthetic division diagrams based on how many steps are
+    //  required.
+    //--------------------------------------------------------------------------
+    function drawSynthetic(results, positions, degree) {
+        $(".syn-init-erasable").addClass("hidden");
+
+        if (degree === 1) {
+            $(".syn-degree1-skippable").addClass("hidden");
+            $("#syn-degree1-handler").removeClass("hidden");
+            // MAYBE ADD 'HIDDEN' back to these 
+
+            initDrawing(results, positions, $("#syn-init-drawing"));
+            step2Drawing(results, positions, $("#syn-2nd-drawing"));
+            step3ModifiedDrawing(results, positions, $("#syn-3rd-drawing"));
+        }
+        else {
+            initDrawing(results, positions, $("#syn-init-drawing"));
+            step2Drawing(results, positions, $("#syn-2nd-drawing"));
+            step3Drawing(results, positions, $("#syn-3rd-drawing"));
+            finalDrawing(results, positions, $("#syn-final-drawing"));
+        }
+    }
+
+    //--------------------------------------------------------------------------
+    //  Handles the first synthetic division drawing
+    //--------------------------------------------------------------------------
+    function initDrawing(results, positions, $initId) {
+        console.log("POSITIONS:  " + positions);
+        console.log("TERMS:  " + getTerms(results.top));
+        let pad = results.top.length - 1; 
+
+        $initId.text("\\[\\begin{array} {c|" + positions + "}" 
+            + results.r + "&" + getTerms(results.top) + "\\\\ \
+            & \\downarrow" + padLine(pad) + "\\\\ \
+            \\hline & \\color{red}{" + results.bottom[0] + "}" + padLine(pad) + " \\end{array}\\]");
+    }
+
+    //--------------------------------------------------------------------------
+    //  Handles the 2nd synthetic division drawing
+    //--------------------------------------------------------------------------
+    function step2Drawing(results, positions, $step2Id) {
+        let midPad = results.top.length - 2,
+            bottomPad = results.top.length - 1;
+
+        $step2Id.text("\\[\\begin{array} {c|" + positions + "}"
+            + results.r + "&" + getTerms(results.top) + "\\\\ \
+            & & \\color{red}{" + results.middle[0] + "}" + padLine(midPad) + "\\\\ \
+            \\hline & " + results.bottom[0] + padLine(bottomPad) + " \\end{array}\\]");
+    }
+
+    //--------------------------------------------------------------------------
+    //  Handles the 3rd synthetic division drawing
+    //--------------------------------------------------------------------------
+    function step3Drawing(results, positions, $step3Id) {
+        let pad = results.top.length - 2;
+
+        $step3Id.text("\\[\\begin{array} {c|" + positions + "}"
+            + results.r + "&" + getTerms(results.top) + "\\\\ \
+            & & " + results.middle[0] + padLine(pad) + "\\\\ \
+            \\hline & " + results.bottom[0] + " & \\color{red}{" + results.bottom[1] + "}" + padLine(pad) + "\\end{array}\\]");
+    }
+
+    //--------------------------------------------------------------------------
+    //  Handles the 3rd synthetic division drawing, for the modified case of 
+    //  a degree 1 polynomial.
+    //--------------------------------------------------------------------------
+    function step3ModifiedDrawing(results, positions, $step3Id) {
+
+        $step3Id.text("\\[\\begin{array} {c|" + positions + "}"
+            + results.r + "&" + getTerms(results.top) + "\\\\ \
+            & & " + results.middle[0] + "\\\\ \
+            \\hline & " + results.bottom[0] + " & \\color{red}{" + results.remainder + "}\\end{array}\\]");
+    }
+
+    //--------------------------------------------------------------------------
+    //  Handles the final synthetic division drawing
+    //--------------------------------------------------------------------------
+    function finalDrawing(results, positions, $finalId) {
+
+        $finalId.text("\\[\\begin{array} {c|" + positions + "}"
+            + results.r + " & " + getTerms(results.top) + "\\\\ \
+            \\ & & " + getTerms(results.middle) + "\\\\ \
+            \\hline & " + getTerms(results.bottom) + " & \\color{red}{" + results.remainder + "}\\end{array}\\]");
+    }
+
+    //--------------------------------------------------------------------------
+    //  Resets the display so that it can be repeated during synthetic division.  
+    //--------------------------------------------------------------------------
+    function resetDisplay() {
+        $("#syn-found-root, #syn-no-root").addClass("hidden");
+        $(".syn-draw-content").removeClass("hidden");
     }
 }
 
@@ -694,164 +946,244 @@ function SyntheticDivisionDisplay(root, polynomial, result) {
 // which will be responsible for creating SDDisplay objects.
 // -----------------------------------------------------------------------------
 function SyntheticDivision(poly, possibleRoots, numberRoots) {
-    // Creating duplicates/modified versions of the parameters for manipulation
+    //  INSTANCE VARIABLES
     let posRootCount = numberRoots.pos,
         negRootCount = numberRoots.neg,
         maxRoots = posRootCount[0] + negRootCount[0],
         posRoots = possibleRoots.pos,
         negRoots = possibleRoots.neg,
-        guessedPositive = [],
-        guessedNegative = [],
-        polynomial = poly;
+        actualRoots = [],
+        guessedIds = [],
+        remainingIds = [],
+        polynomial = poly,
+        _this = this; // keeps a reference to the current object
 
-    //changeDisplay(fromStage, toStage);
-    totalDisplay(posRootCount, negRootCount, $("#syn-total-pos"), $("#syn-total-neg"));
-    initialRootsDisplay(posRoots, negRoots, "#syn-pos-roots", "#syn-neg-roots");
-    setAsyncRootHandlers(polynomial, posRoots, "#pos");
-    setAsyncRootHandlers(polynomial, negRoots, "#neg");
+    // CONSTRUCTOR
+    synthReinitializer();
+    initialRootsSetup(posRoots, negRoots, "#syn-pos-roots", "#syn-neg-roots");
+    initialRecap(posRootCount, negRootCount, $("#syn-total-pos"), $("#syn-total-neg"));
+    setAsyncRootHandlers(polynomial);
+    // END CONSTRUCTOR
 
-    console.log("POSITIVE COUNT:  " + posRootCount);
-    console.log("NEGATIVE COUNT:  " + negRootCount);
-    console.log("MAX ROOTS:  " + maxRoots);
-    console.log("POSITVE ROOTS:  " + posRoots);
-    console.log("NEGATIVE ROOTS:  " + negRoots);
-
-    // Final cleanup/LaTex operations
-    MathJax.Hub.Queue(["Typeset", MathJax.Hub, "syn-total-pos, syn-total-neg"]);
-
-    //------------------------------------------------------------------------------
-    //  Used to display the total count for both pos and neg roots.
-    //------------------------------------------------------------------------------
-    function totalDisplay(posRootCount, negRootCount, $posId, $negId) {
-        $posId.append("\\[\\text{Pos. Root Count:  }" + posRootCount + "\\]");
-        $negId.append("\\[\\text{Neg. Root Count:  }" + negRootCount + "\\]");
+    // ACCESSORS
+    this.getPosRootCount = function () {
+        return posRootCount;
     }
 
-    //------------------------------------------------------------------------------
+    this.getNegRootCount = function () {
+        return negRootCount;
+    }
+
+    this.getMaxRoots = function () {
+        return maxRoots;
+    }
+
+    this.getPosRoots = function () {
+        return posRoots;
+    }
+
+    this.getNegRoots = function () {
+        return negRoots;
+    }
+
+    this.getGuessedIds = function () {
+        return guessedIds;
+    }
+
+    this.getRemainingIds = function () {
+        return remainingIds;
+    }
+
+    this.getActualRoots = function () {
+        return actualRoots;
+    }
+
+    this.getPolynomial = function () {
+        return polynomial;
+    }
+
+    // END ACCESSORS
+
+    //--------------------------------------------------------------------------
     //  Used to set the initial ID values for the possible roots in the html
-    //  NOTE:  This does not use MathJax to display.
-    //------------------------------------------------------------------------------
-    function initialRootsDisplay(posRoots, negRoots, posParentId, negParentId) {
-        $(posParentId).append("Pos:");
-        for (let i = 0; i < posRoots.length; ++i) {
-            $("<span>\\(" + posRoots[i] + "\\)</span>").appendTo(posParentId).attr({
-                "id": "pos" + i,
-                "class": "span-space"
-            });
-        }
+    //--------------------------------------------------------------------------
+    function initialRootsSetup(posRoots, negRoots, posParentId, negParentId) {
+        rootsSetup(posRoots, posParentId, "Pos");
+        rootsSetup(negRoots, negParentId, "Neg");
+    }
 
-        $(negParentId).append("Neg:");
-        for (let i = 0; i < negRoots.length; ++i) {
-            $("<span>\\(" + negRoots[i] + "\\)</span>").appendTo(negParentId).attr({
-                "id": "neg" + i,
-                "class": "span-space"
+    //--------------------------------------------------------------------------
+    //  A simple helper function for initialRootsSetup
+    //--------------------------------------------------------------------------
+    function rootsSetup(roots, parentId, id) {
+        displayInline(id + ":", $(parentId));
+        for (let i = 0; i < roots.length; ++i) {
+            $("<span>\\(" + roots[i] + "\\)</span>").appendTo(parentId).attr({
+                "id": id + i,
+                "class": "span-space",
+                "data-root":  roots[i] // makes displaying later easier
             });
+
+            remainingIds.push($("#" + id + i));
         }
     }
 
     //--------------------------------------------------------------------------
-    //  Used to mark out roots that have already been guessed 
+    //  Shows the initial values discovered from previous stages.  NOTE:  this
+    //  method is normally handled during SyntheticDivisionDisplay; however, the
+    //  initial iteration must be displayed within this class, as 'this' object 
+    //  is not finished constructing if a synchronous call to 
+    //  SyntheticDivsionDisplay is made and therefore cannot display its values.
     //--------------------------------------------------------------------------
-    function cancelRoots(roots, guessed, id) {
-        for (let i = 0; i < roots.length; ++i) {
-            if (guessed[i]) {
-                $(id + i).text("\\(\\cancel{" + roots[i] + "}\\)")
-            }
-        }
+    function initialRecap(posRootCount, negRootCount, $posId, $negId) {
+        $posId.text("\\[\\text{Pos. Root Count:  }" + posRootCount + "\\]");
+        $negId.text("\\[\\text{Neg. Root Count:  }" + negRootCount + "\\]");
+        MathJax.Hub.Queue(["Typeset", MathJax.Hub, "syn-total-pos, syn-total-neg"]);
     }
 
     //--------------------------------------------------------------------------
     //  Sets all of the 'onClick' handlers for each root available.  The handlers
     //  are fired based on which numbers are clicked.
     //--------------------------------------------------------------------------
-    function setAsyncRootHandlers(polynomial, roots, id) {
-        for (let i = 0; i < roots.length; ++i) {
-            let root = roots[i];
-            $(id + i).on("click", function () {
-                let result = synDivide(polynomial, root);
+    function setAsyncRootHandlers(polynomial) {
+        remainingIds.forEach(function ($id) {
+            let root = $id.data("root");
 
-                if (root > 0) {
-                    guessedPositive.push(root);
-                }
-                else if (root < 0) {
-                    guessedNegative.push(root);
-                }
-                else { // Did we handle this???
-                    // ????
-                }
+            let currentClick = function () {
+                return new Promise(function (resolve, reject) {
+                    $id.on("click.synth", function () {
+                        let results = synDivide(polynomial, root),
+                            finished = false;
 
-                // Displaying based on the current choice
-                let synDisplay = new SyntheticDivisionDisplay(root, polynomial, result);
-                synDisplay.display();
+                        if (results.foundRoot) {
+                            actualRoots.push(results.r);
+                        }
 
-                let finished = updateRoots(result, roots, guessedPositive, guessedNegative);
-                if (finished) {
-                    // CANCEL ALL, return roots
+                        guessedIds.push($id);
+                        remainingIds.splice(remainingIds.indexOf($id), 1);
+
+                        if (hasFinished()) {
+                            new SyntheticDivisionDisplay(_this, results).finalDisplay();
+                            finished = true;
+                        }
+                        else {  
+                            new SyntheticDivisionDisplay(_this, results).display();
+                        }
+
+                        // Data needed upon completion of click event
+                        resolve({
+                            synDivResults: results,
+                            $id: $id,
+                            finished: finished
+                        });
+                    });
+                });
+            }; 
+
+            // After the click event has executed
+            currentClick().then(function (results) {
+                console.log("R:  " + results.synDivResults.r);
+                console.log("TOP:  " + results.synDivResults.top);
+                console.log("MIDDLE:  " + results.synDivResults.middle);
+                console.log("REDUCED:  " + results.synDivResults.bottom);
+                console.log("REMAINDER:  " + results.synDivResults.remainder);
+
+                if (results.finished) {
+                    $("span").off(".synth"); // remove all click handlers
+                    $("#SYNTHETIC-to-FINAL").removeClass("hidden");
+
+                    return; 
+                }
+                else if (results.synDivResults.foundRoot && !(results.finished)) {  
+                    $("span").off(".synth"); // remove all click handlers
+
+                    // Recursively start over with reduced polynomial
+                    setAsyncRootHandlers(toPolynomial(results.synDivResults.bottom));
+                    
+                    return; // Ends remaining loop after recursion finishes  
                 }
                 else {
-                    // CANCEL only ROOT
-                    // UPDATE GUESSES
+                    //Otherwise, only remove a single click event
+                    results.$id.off(".synth");
                 }
             });
+        });
+    }
+
+    //--------------------------------------------------------------------------
+    //  Determines if the user has found all the possible rational roots.
+    //--------------------------------------------------------------------------
+    function hasFinished() {
+        if (remainingIds.length === 0 || actualRoots.length === maxRoots) {
+            return true;
+        }
+        else {
+            return false;
         }
     }
 
     //--------------------------------------------------------------------------
-    //  Keeps up with the state of the guesses
-    //--------------------------------------------------------------------------
-    function updateRoots(result, roots, guessedPositive, guessedNegative) {
-        // STUB - finish later
-        return false;
-    }
-
-
-    //--------------------------------------------------------------------------
-    //  Performs synthetic division on the polynomial and returns the remainder
+    //  Performs synthetic division on the polynomial and returns an object that
+    //  contains all of the matrices involved in the steps, as well as the 
+    //  remainder.
     //--------------------------------------------------------------------------
     function synDivide(polynomial, root) {
-        let top = toMatrix(polynomial),
+        let top = toMatrix(prepareForMatrix(polynomial)),
             middle = [],
             bottom = [],
-            N = Algebrite.deg(polynomial);
+            N = top.length - 1,
+            foundRoot = false,
+            r = root,
+            remainder;
 
         for (let i = 0; i <= N; ++i) {
             if (i === 0) {
                 bottom.push(top[i]);
-                middle.push(bottom[i] * root);
+                middle.push(bottom[i] * r);
             }
-            else if (i === N) {
-                bottom.push(top[i] - middle[i - 1]);
+            else if (i == N) {
+                bottom.push(top[i] + middle[i - 1]);
             }
             else {
-                bottom.push(top[i] - middle[i - 1]);
-                middle.push(bottom[i] * root);
+                bottom.push(top[i] + middle[i - 1]);
+                middle.push(bottom[i] * r);
             }
         }
 
-        // This is the last position: the remainder
-        return bottom[N];
+        remainder = bottom.pop();
+
+        if (remainder === 0) { foundRoot = true; }
+
+        // Returns all details for display later
+        return {
+            polynomial: polynomial,
+            r : r,
+            top: top,
+            middle: middle,
+            bottom: bottom,
+            remainder: remainder,
+            foundRoot: foundRoot
+        };
+    }
+
+    //--------------------------------------------------------------------------
+    //  Sets up the SYNTHETIC stage so that it can be repeated.  Mainly, this 
+    //  function erases the drawings, resets the html, and removes all active
+    //  click handlers.
+    //--------------------------------------------------------------------------
+    function synthReinitializer() {
+        $("span").off(".synth"); // removing the click handlers
+        $(".syn-draw-content").addClass("hidden");
+        $(".syn-reinit").addClass("hidden");
+        $("#syn-degree1-handler").addClass("hidden");
+        $(".syn-degree1-skippable").removeClass("hidden");
+        $(".syn-init-erasable").removeClass("hidden");
+        $(".syn-draw-erasable").empty();
     }
 }
 
 //##############################################################################
 //*******************************END SYNTHETIC STAGE****************************
-//##############################################################################
-
-//##############################################################################
-//***********************************FINAL STAGE********************************
-//##############################################################################
-
-// -----------------------------------------------------------------------------
-// The flow of the program picks up here from the SYNTHETIC stage, moving
-// towards the FINAL stage.  This function is triggered by the onClick button
-// from STAGE SYNTHETIC.
-// -----------------------------------------------------------------------------
-function FinalRecap(polynomial, actualRoots) {
-    // TODO
-}
-
-//##############################################################################
-//*********************************END FINAL STAGE******************************
 //##############################################################################
 
 //##############################################################################
@@ -863,7 +1195,9 @@ function FinalRecap(polynomial, actualRoots) {
 // break the program into the various STAGES necessary for displaying the 
 // tutorial.  The main function first waits for a form submit to validate the
 // user input.  After this, the program executes the FORMS stage.  The stages
-// will move from one to the next as the user presses the 'Continue' button.
+// will move from one to the next as the user presses the 'Continue' button.  
+// The user will also be able to navigate to completed stages by clicking the
+// the tabs on the left side of the screen.
 // -----------------------------------------------------------------------------
 var main = function () {
     "use strict";
@@ -877,15 +1211,14 @@ var main = function () {
     if (top.location.pathname === '/Tutorial') {
         let polynomial,         // POLYNOMIAL for all stages
             allPossibleRoots,   // For RZT         
-            numberOfRoots,      // For DESCARTES
-            actualRoots;        // For SYNTHETIC
+            numberOfRoots;      // For DESCARTES
 
 //###################################FORMS######################################
 
         // TODO !!!!!! FINISH this part!
         // Grabbing the data attribute set from the server, which was stored by
         // the Model class.  This is quicker than contacting the server.
-        polynomial = combineTerms($("#initialBackendPolyString").data("poly"));
+        polynomial = ($("#initialBackendPolyString").data("poly"));
         let recogForms = new RecognizableForms(polynomial),
             stage = new Stage(FORMS);
         // TODO - will need a display function here, instead of in recogForms
@@ -910,9 +1243,8 @@ var main = function () {
                     changeDisplay(stage.getCurrentStage(), RZT));
             }
             else {
-                var rational = new RationalZeroTest(polynomial),
-                    rationalDisplay = new RationalZeroTestDisplay(rational);
-                rationalDisplay.display();
+                var rational = new RationalZeroTest(polynomial);
+                new RationalZeroTestDisplay(rational).display();
                 stage.markStageCompleted(RZT);
                 stage.setStage(stage.getCurrentStage(),
                     changeDisplay(stage.getCurrentStage(), RZT));
@@ -938,9 +1270,8 @@ var main = function () {
                     changeDisplay(stage.getCurrentStage(), DESCARTES));
             }
             else {
-                var descartes = new Descartes(polynomial),
-                    descartesDisplay = new DescartesDisplay(descartes);
-                descartesDisplay.display();
+                var descartes = new Descartes(polynomial);
+                new DescartesDisplay(descartes).display();
                 stage.markStageCompleted(DESCARTES);
                 stage.setStage(stage.getCurrentStage(),
                     changeDisplay(stage.getCurrentStage(), DESCARTES));
@@ -961,45 +1292,30 @@ var main = function () {
 //##################################SYNTHETIC###################################
 
         $("#DESCARTES-to-SYNTHETIC").on("click", function () {
-            if (stage.isCompleted(SYNTHETIC)) {
-                stage.setStage(stage.getCurrentStage(),
-                    changeDisplay(stage.getCurrentStage(), SYNTHETIC));
-            }
-            else {
-                var syn = new SyntheticDivision(polynomial, allPossibleRoots, numberOfRoots);
-                // HANDLE DISPLAY - synthetic division
-                stage.markStageCompleted(SYNTHETIC);
-                stage.setStage(stage.getCurrentStage(),
-                    changeDisplay(stage.getCurrentStage(), SYNTHETIC));
-                // SET actualRoots
-            }
+            let syn = new SyntheticDivision(polynomial, allPossibleRoots, numberOfRoots);
+            // NOTE:  Display classes created individually based on user action
+            // from within SyntheticDivision class.
+            stage.markStageCompleted(SYNTHETIC);
+            stage.setStage(stage.getCurrentStage(),
+                changeDisplay(stage.getCurrentStage(), SYNTHETIC));
+
+            finalClickHandler(polynomial, syn, stage);
         });
 
-        // Redo SYNTHETIC stage if already past it
+        // Redo SYNTHETIC stage if have made it to this stage
         $("#SYNTHETIC-tab").on("click", function () {
-            if (stage.isCompleted(FINAL)) {
+            if (stage.isCompleted(SYNTHETIC)) {
+                let syn = new SyntheticDivision(polynomial, allPossibleRoots, numberOfRoots);
                 stage.setStage(stage.getCurrentStage(),
                     changeDisplay(stage.getCurrentStage(), SYNTHETIC));
+
+                finalClickHandler(polynomial, syn, stage);
             }
         });
 
 //################################END_SYNTHETIC#################################
 
 //####################################FINAL#####################################
-
-        $("#SYNTHETIC-to-FINAL").on("click", function () {
-            if (stage.isCompleted(FINAL)) {
-                stage.setStage(stage.getCurrentStage(),
-                    changeDisplay(stage.getCurrentStage(), FINAL));
-            }
-            else {
-                var fin = new FinalRecap(polynomial, actualRoots);
-                // HANDLE DISPLAY - FinalRecap 
-                stage.markStageCompleted(FINAL);
-                stage.setStage(stage.getCurrentStage(),
-                    changeDisplay(stage.getCurrentStage(), FINAL));
-            }
-        });
 
         // Allow this tab to be clicked only once truly finished
         $("#FINAL-tab").on("click", function () {
@@ -1123,6 +1439,30 @@ function selectStageHeading(stage) {
 }
 
 // -----------------------------------------------------------------------------
+// Handles the transition from SYNTHETIC to FINAL stages.
+// -----------------------------------------------------------------------------
+function finalClickHandler(polynomial, syn, stage) {
+    // Resets click handler
+    $("#SYNTHETIC-to-FINAL").off("click");
+
+    $("#SYNTHETIC-to-FINAL").on("click", function () {
+        if (stage.isCompleted(FINAL)) {
+            stage.setStage(stage.getCurrentStage(),
+                changeDisplay(stage.getCurrentStage(), FINAL));
+        }
+        else {
+            displayAsBlock(polynomial, $("#final-poly"));
+            displayAsBlock(syn.getActualRoots(), $("#final-roots"));
+            stage.markStageCompleted(FINAL);
+            stage.setStage(stage.getCurrentStage(),
+                changeDisplay(stage.getCurrentStage(), FINAL));
+
+            MathJax.Hub.Queue(["Typeset", MathJax.Hub, "final-poly, final-roots"]);
+        }
+    });
+}
+
+// -----------------------------------------------------------------------------
 // Used to compare two arrays
 // -----------------------------------------------------------------------------
 function arraysAreEqual(arrayA, arrayB) {
@@ -1147,6 +1487,8 @@ function arraysAreEqual(arrayA, arrayB) {
 function toMatrix(poly) {
     let polyMatrix = [],
         N = Algebrite.deg(poly);
+
+    console.log("DEGREE:" + N);
 
     for (var i = N; i >= 0; --i) {
         // Another workaround for Algebrite.  The coefficient object represents
@@ -1177,12 +1519,15 @@ function toPolynomial(matrix) {
 }
 
 // -----------------------------------------------------------------------------
-// Makes sure that any terms entered by user are combined, if possible
+// Makes sure that any terms entered by user are combined, if possible.  This is
+// only for display; it only displays the initial user polynomial.
 // -----------------------------------------------------------------------------
-function combineTerms(polynomial) {
-    // Just to make sure, put it in string form
-    polynomial = polynomial.toString();
-    return Algebrite.run(polynomial);
+function makeInitDisplayable(polynomial) {
+    let simplified = math.simplify(math.parse(polynomial)).toString();
+    console.log("SIMPLIFIED FOR DISPLAY:  " + simplified);
+    let corrected = removeMultSigns(simplified);
+    console.log("CORRECTED FOR DISPLAY: " + corrected);
+    return corrected;
 }
 
 // -----------------------------------------------------------------------------
@@ -1191,6 +1536,130 @@ function combineTerms(polynomial) {
 function removeWhiteSpace(string) {
     return string.split(" ").join("");
 }
+
+// -----------------------------------------------------------------------------
+// Removes the '*' signs in polynomials, only after the polynomial has been
+// parsed and simplified.  This is solely for pretty printing to the user.
+// -----------------------------------------------------------------------------
+function removeMultSigns(string) {
+    return string.split("*").join("");
+}
+
+// -----------------------------------------------------------------------------
+// Places a '*' sign into a polynomial if, after it has been parsed and 
+// simplified, it still contains values that are adjacent to each other such
+// as 7x(x + 5).  CAS cannot seem to do this properly, so this will have to 
+// be implemented to make sure the VALUES are correct if a user decides to input
+// a certain way.
+// -----------------------------------------------------------------------------
+function addMultSigns(string) {
+    let stack = "",
+        added = 0,
+        x = /[xX]/,
+        num = /[0-9]/,
+        leftParen = /\(/,
+        rightParen = /\)/,
+        char = "",
+        next = "";
+
+    for (let i = 0; i < string.length - 1; ++i) {
+        char = string[i];
+        next = string[i + 1];
+
+        stack += char;
+
+        if (x.test(char)) {
+            if (num.test(next) || leftParen.test(next)) {
+                stack += "*";
+            }
+        }
+        else if (num.test(char)) {
+            if (x.test(next) || leftParen.test(next)) {
+                stack += "*";
+            }
+        }
+        else if (rightParen.test(char)) {
+            if (x.test(next) || num.test(next) || leftParen.test(next)) {
+                stack += "*";
+            }
+        }
+    }
+
+    // Making sure to add final character
+    stack += string[string.length - 1];
+
+    return stack;
+}
+
+// -----------------------------------------------------------------------------
+// This function performs all of the necessary task before a polynomial is 
+// converted to a matrix.
+// -----------------------------------------------------------------------------
+function prepareForMatrix(poly) {
+    let parse = math.simplify(math.parse(poly)).toString();
+    console.log("PARSE:  " + parse);
+    let corrected = addMultSigns(parse);
+    console.log("CORRECTED IN PREP: " + corrected);
+    let expanded = Algebrite.run(corrected);
+    console.log("EXPANDED IN PREP: " + expanded);
+
+    return expanded;
+}
+
+// -----------------------------------------------------------------------------
+// This method is borrowed from MDN in order to allow decimal rounding
+// -----------------------------------------------------------------------------
+(function () {
+    /**
+     * Decimal adjustment of a number.
+     *
+     * @param {String}  type  The type of adjustment.
+     * @param {Number}  value The number.
+     * @param {Integer} exp   The exponent (the 10 logarithm of the adjustment base).
+     * @returns {Number} The adjusted value.
+     */
+    function decimalAdjust(type, value, exp) {
+        // If the exp is undefined or zero...
+        if (typeof exp === 'undefined' || +exp === 0) {
+            return Math[type](value);
+        }
+        value = +value;
+        exp = +exp;
+        // If the value is not a number or the exp is not an integer...
+        if (value === null || isNaN(value) || !(typeof exp === 'number' && exp % 1 === 0)) {
+            return NaN;
+        }
+        // If the value is negative...
+        if (value < 0) {
+            return -decimalAdjust(type, -value, exp);
+        }
+        // Shift
+        value = value.toString().split('e');
+        value = Math[type](+(value[0] + 'e' + (value[1] ? (+value[1] - exp) : -exp)));
+        // Shift back
+        value = value.toString().split('e');
+        return +(value[0] + 'e' + (value[1] ? (+value[1] + exp) : exp));
+    }
+
+    // Decimal round
+    if (!Math.round10) {
+        Math.round10 = function (value, exp) {
+            return decimalAdjust('round', value, exp);
+        };
+    }
+    // Decimal floor
+    if (!Math.floor10) {
+        Math.floor10 = function (value, exp) {
+            return decimalAdjust('floor', value, exp);
+        };
+    }
+    // Decimal ceil
+    if (!Math.ceil10) {
+        Math.ceil10 = function (value, exp) {
+            return decimalAdjust('ceil', value, exp);
+        };
+    }
+})();
 
 //##############################################################################
 //**************************END MISCELLANEOUS FUNCTIONS*************************
