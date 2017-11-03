@@ -135,7 +135,7 @@ function InputValidator() {
     // the user input does not have any roots.
     // -----------------------------------------------------------------------------
     function displayNoRootsError() {
-        alert("Doesn't have roots...awwwwwwwwww snaaaaaap"); // PLEASE...COME ON
+        alert("Doesn't have roots..."); // PLEASE...COME ON
         $("#polyInputError").text("*No rational roots exist.  Please try again.");
         $("#polyInput").val("");
     }
@@ -454,7 +454,10 @@ function RationalZeroTest(poly) {
             });
         }
 
-        return Array.from(possibleRoots);
+        let arr = Array.from(possibleRoots);
+        arr.sort(sortPos);
+
+        return arr;
     }
 
     // -----------------------------------------------------------------------------
@@ -477,6 +480,8 @@ function RationalZeroTest(poly) {
                 });
             });
         }
+
+        possibleRoots.sort(sortPos);
 
         return possibleRoots;
     }
@@ -508,6 +513,9 @@ function RationalZeroTest(poly) {
 
         let arrPos = Array.from(possiblePosRoots),
             arrNeg = Array.from(possibleNegRoots);
+
+        arrPos.sort(sortPos);
+        arrNeg.sort(sortNeg);
 
         return { pos: arrPos, neg: arrNeg };
     }
@@ -643,9 +651,9 @@ function Descartes(poly) {
         possibleNegatives;
 
     // CONSTRUCTOR
-    polynomial = prepareForMatrix(poly);
+    polynomial =  prepareForMatrix(poly);
     posPolyMatrix = toMatrix(polynomial);
-    negPolyMatrix = FloPoly.reflectAboutYAxis(toMatrix(polynomial));
+    negPolyMatrix = convertNegFx(toMatrix(polynomial));
     negPolynomial = toPolynomial(negPolyMatrix);
     posSignChanges = FloPoly.signChanges(posPolyMatrix);
     negSignChanges = FloPoly.signChanges(negPolyMatrix);
@@ -694,6 +702,27 @@ function Descartes(poly) {
         }
 
         return possibleValues;
+    }
+
+    // -----------------------------------------------------------------------------
+    // A simple function that finds all values less than a given number by 2, while
+    // > 0. It returns this list of numbers, which also contains the original number
+    // -----------------------------------------------------------------------------
+    function convertNegFx(matrix) {
+        let N = matrix.length;
+
+        if (N % 2 === 0) {
+            for (let i = 0; i < N; i += 2) {
+                matrix[i] = -(matrix[i]);
+            }
+        }
+        else {
+            for (let i = 1; i < N; i += 2) {
+                matrix[i] = -(matrix[i]);
+            }
+        }
+
+        return matrix;
     }
 }
 
@@ -1555,6 +1584,8 @@ function removeMultSigns(string) {
 // be done, but whatever.
 // -----------------------------------------------------------------------------
 function sanitizeInput(string) {
+    string = removeWhiteSpace(string);
+
     let stack = "",
         added = 0,
         x = /[xX]/,
@@ -1671,7 +1702,15 @@ function prepareForMatrix(poly) {
     }
 })();
 
+function sortPos(a, b) {
+    return (a - b);
+}
+
+function sortNeg(a, b) {
+    return (b - a);
+}
+
 //##############################################################################
 //**************************END MISCELLANEOUS FUNCTIONS*************************
 //##############################################################################
-//$(document).ready(main);
+$(document).ready(main);

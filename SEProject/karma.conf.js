@@ -15,15 +15,16 @@ module.exports = function(config) {
 
     // list of files / patterns to load in the browser
     files: [
-      'wwwroot/js/site.js',
-        'wwwroot/js/tests/testscripts.js',
+        'wwwroot/lib/MathJax/MathJax.js',
         'wwwroot/lib/jquery/dist/jquery.js',
         'wwwroot/lib/bootstrap/dist/js/bootstrap.js',
         'wwwroot/lib/flo-poly/dist/flo-poly.js',
         'wwwroot/lib/polynomial.js/polynomial.js',
         'wwwroot/lib/mathjs/dist/math.js',
         'wwwroot/lib/Algebrite_test/Algebrite-master/dist/algebrite.bundle-for-browser.js',
-        'wwwroot/lib/jasmine-jquery/lib/jasmine-jquery.js'
+        'wwwroot/lib/jasmine-jquery/lib/jasmine-jquery.js',
+        'wwwroot/js/site.js',
+        'wwwroot/js/tests/testscripts.js'
     ],
 
 
