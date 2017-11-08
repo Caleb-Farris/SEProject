@@ -1,4 +1,14 @@
-﻿describe("Stage - CLASS TEST", function () {
+﻿/*
+beforeEach(function (done) {
+    window.setTimeout(function () {
+        done();
+    }, 0);
+});
+*/
+
+//################################ STAGE #######################################
+
+describe("Stage - CLASS TEST", function () {
     let stage, initialStage, currentStage, previousStage, completed;
 
     beforeEach(function () {
@@ -54,15 +64,15 @@
     });
 });
 
+//############################## INPUT_VALIDATOR ###############################
+
 describe("InputValidator - CLASS TEST", function () {
     let validator, input;
 
-    $('body').append('<input name="polyString" id="polyInput" type="text" ' +
-        'placeholder= "Enter polynomial here" value=""><p id="polyInputError"></p>');
-
-    validator = new InputValidator();
-
     beforeEach(function () {
+        setFixtures('<input name="polyString" id="polyInput" type="text" ' +
+            'placeholder= "Enter polynomial here" value=""><p id="polyInputError"></p>');
+        validator = new InputValidator();
         spyOn(validator, 'validate').and.callThrough();
     });
 
@@ -110,6 +120,74 @@ describe("InputValidator - CLASS TEST", function () {
     });
 
 });
+
+//#############################RECOGNIZABLE_FORMS###############################
+
+// The actual code is incomplete, but you only need the describe/it/expect 
+// statements anyway.
+describe("RecognizableForms - CLASS TEST", function () {
+
+    let poly1 = "(x^2-4)((x-8)(x + 2)(3x^3 - 81))",
+        poly2 = "x^3+8",
+        poly3 = "-2x^3-16",  
+        poly4 = "(x+2)(2x^3-4x^2+6x)",
+        poly5 = "2x^2+4x-2",
+        parsed;
+
+    it("should be able to parse expression for difference of two squares", function () {
+        //let forms = new RecognizableForms(poly1);
+        //parsed = forms.getDifTwoSquares();
+        //expect(parsed).toBe("x^2-4");
+    });
+
+    it("should be able to parse expression for difference of two cubes", function () {
+        //let forms = new RecognizableForms(poly2);
+        //parsed = forms.getDifTwoCubes();
+        //expect(parsed).toBe("x^3-8");
+    });
+
+    it("should be able to parse expression for sum of two cubes", function () {
+        //let forms = new RecognizableForms(poly3);
+        //parsed = forms.getSumTwoCubes();
+        //expect(parsed).toBe("x^3+8");
+    });
+
+    it("should be able to parse expression for already factored forms, i.e. x+2", function () {
+        let forms = new RecognizableForms(poly4);
+        //parsed = forms.getFactorable();
+        //expect(parsed).toBe("x+2");
+    });
+
+    it("should be able to parse when expression has irrational roots", function () {
+        //let forms = new RecognizableForms(poly5);
+        //parsed = forms.isIrrational();
+        //expect(parsed).toBe("x^2+2x-1");
+    });
+});
+
+describe("RecognizableFormsDisplay - CLASS TEST", function () {
+    setFixtures('<p id="formsInitPoly"></p>' +
+        '<p id="formsDisplay"></p>' +
+        '<p id="formsReduced"></p>');
+
+    let poly1 = "x^2-4",
+        forms = new RecognizableForms(poly1),
+        display = new RecognizableFormsDisplay(forms).display();
+
+    it("should be able to display the parsed polynomial", function () {
+        //expect($("#formsInitPoly")).toBe("x^2-4");
+    });
+
+    it("should be able to display the reduced forms within the polynomial", function () {
+        //expect($("#formsDisplay")).toBe"x^2-4";
+    });
+
+    it("should be able to display the new, reduced polynomial", function () {
+        //expect($("#formsDisplay")).toBe("(x+2)(x-2)");
+    });
+});
+
+//############################# RATIONAL_ZERO_TEST #############################
 
 describe("RationalZeroTest - CLASS TEST", function () {
     let polynomial = "2x^2+13x+6",
@@ -168,7 +246,7 @@ describe("RationalZeroTest - CLASS TEST", function () {
 });
 
 describe("RationalZeroTestDisplay - CLASS TEST", function () {
-    $("body").append("<p id='rzt-p-over-q'></p>" +
+    setFixtures("<p id='rzt-p-over-q'></p>" +
         "<p id='rzt-pq'></p>" +
         "<p id='rzt-pq-reduced'></p>");
 
@@ -191,6 +269,8 @@ describe("RationalZeroTestDisplay - CLASS TEST", function () {
     });
 
 });
+
+//################################ DESCARTES ###################################
 
 describe("Descartes - CLASS TEST", function () {
     let polynomial = "x^2+5x-6",
@@ -316,14 +396,162 @@ describe("DescartesDisplay - CLASS TEST", function () {
 
 });
 
+//################################# SYNTHETIC ##################################
+
 describe("SyntheticDivision - CLASS TEST", function () {
-    //FINISH
+    // Mock of previous class inputs
+    let poly = "x^2+5x+4",
+        possibleRoots = { pos: [1, 2, 4], neg: [-1, -2, -4] },
+        numberRoots = { pos: [0], neg: [2, 0] };
+
+    let posRootCount = numberRoots.pos,
+        negRootCount = numberRoots.neg,
+        maxRoots = posRootCount[0] + negRootCount[0],
+        posRoots = possibleRoots.pos,
+        negRoots = possibleRoots.neg,
+        irrationalRoots = [],
+        rationalRoots = [],
+        guessedIds = [],
+        remainingIds = [],
+        polynomial = poly,
+        syn = new SyntheticDivision(poly, possibleRoots, numberRoots);
+
+    beforeEach(function () {
+        spyOn(syn, "getPolynomial").and.callThrough();
+        spyOn(syn, "getPosRootCount").and.callThrough();
+        spyOn(syn, "getNegRootCount").and.callThrough();
+        spyOn(syn, "getMaxRoots").and.callThrough();
+        spyOn(syn, "getPosRoots").and.callThrough();
+        spyOn(syn, "getNegRoots").and.callThrough();
+        spyOn(syn, "getIrrationalRoots").and.callThrough();
+        spyOn(syn, "getRationalRoots").and.callThrough();
+        spyOn(syn, "getGuessedIds").and.callThrough();
+        spyOn(syn, "getRemainingIds").and.callThrough();
+
+        polynomial = syn.getPolynomial();
+        posRootCount = syn.getPosRootCount();
+        negRootCount = syn.getNegRootCount();
+        maxRoots = syn.getMaxRoots();
+        posRoots = syn.getPosRoots();
+        negRoots = syn.getNegRoots();
+        irrationalRoots = syn.getIrrationalRoots();
+        rationalRoots = syn.getRationalRoots();
+        guessedIds = syn.getGuessedIds();
+        remainingIds = syn.getRemainingIds();
+    });
+
+    it("should create a SyntheticDivision object", function () {
+        expect(syn).toBeDefined();
+    });
+
+    it("should return the normal polynomial string", function () {
+        expect(syn.getPolynomial).toHaveBeenCalled();
+        let testPoly = removeWhiteSpace(polynomial);
+        expect(testPoly).toBe("x^2+5x+4");
+    });
+
+    it("should return the amounts of possible positive roots", function () {
+        expect(syn.getPosRootCount).toHaveBeenCalled();
+        expect(posRootCount).toEqual([0]);
+    });
+
+    it("should return the amounts of possible negative roots", function () {
+        expect(syn.getNegRootCount).toHaveBeenCalled();
+        expect(negRootCount).toEqual([2,0]);
+    });
+
+    it("should return the maximum amount of rational roots in the polynomial", function () {
+        expect(syn.getMaxRoots).toHaveBeenCalled();
+        expect(maxRoots).toEqual(2);
+    });
+
+    it("should return all possible, positive roots", function () {
+        expect(syn.getPosRoots).toHaveBeenCalled();
+        expect(posRoots).toEqual([1, 2, 4]);
+    });
+
+    it("should return all possible, negative roots", function () {
+        expect(syn.getNegRoots).toHaveBeenCalled();
+        expect(negRoots).toEqual([-1, -2, -4]);
+    });
+
+    it("should return the discovered irrational roots in the polynomial", function () {
+        expect(syn.getIrrationalRoots).toHaveBeenCalled();
+        expect(irrationalRoots).toEqual([]); 
+    });
+
+    it("should return the discovered rational roots in the polynomial", function () {
+        expect(syn.getRationalRoots).toHaveBeenCalled();
+        expect(rationalRoots).toEqual([]); // ASYNCHRONOUS
+    });
+
+    it("should return a list of the ids of all guessed roots", function () {
+        expect(syn.getGuessedIds).toHaveBeenCalled();
+        expect(guessedIds).toEqual([]); // ASYNCHRONOUS
+    });
+
+    it("should return a list of the ids of all remaining, unguessed roots", function () {
+        expect(syn.getRemainingIds).toHaveBeenCalled();
+        //expect(remainingIds).toEqual([ $("#Pos0"), $("#Pos1"), $("#Pos2"),
+        //    $("#Neg0"), $("#Neg1"), $("#Neg2")]); // ASYNCHRONOUS
+    });
+
 });
 
+// Just FYI - this part is modeled by displaying the possible rational roots at
+// the top of the page.  THe user can click on these numbers and it will begin
+// synthetic division, showing each step in a drawing with matching html.  
+// Depending on the size of the polynomial, or how reduced it has become, this
+// class keeps displaying these drawings until either the roots are found or it
+// is discovered that no more rational roots can be found.  
 describe("SyntheticDivisionDisplay - CLASS TEST", function () {
-    //FINISH
+    setFixtures("<p id='syn-init-drawing'></p>" +
+        "<p id='syn-2nd-drawing'></p>" +
+        "<p id='syn-3rd-drawing'></p>" +
+        "<p id='syn-final-drawing'></p>" +
+        "<p id='syn-rational-roots'></p>" + 
+        "<p id='syn-irrational-roots'></p>");
+
+    let syn = new SyntheticDivision("x^2+3x+2", {pos: [1, 2], neg: [-1, -2] }, { pos: [2, 0], neg: [0] });
+
+    it("should display the initial drawing", function () {
+        // expect this area in html doc to display the initial drawing step
+    });
+
+    it("should display the 2nd drawing", function () {
+        // expect this area in html doc to display the 2nd drawing step
+    });
+
+    it("should display the 3rd drawing", function () {
+        // expect this area in html doc to display the 3rd drawing step
+    });
+
+    it("should display the final drawing", function () {
+        // expect this area in html doc to display the final drawing step
+    });
+
+    it("should display the rational roots discovered, at the proper time", function () {
+        // expect this area in html doc to display -> 1, 2
+    });
+
+    it("should display the irrational roots discovered, when appropriate", function () {
+        // expect this area in html doc to display -> <nothing> 
+        // i.e. only display when irrational roots are available
+    });
+
 });
 
+
+//------------------------------------------------------------------------------
+//                           MISCELLANEOUS FUNCTIONS
+//
+//  The folllowing are intended as helper functions for the classes in PolyRoot.
+//  The functions act as modular code that can be used by the classes and will
+//  perhaps in the future be moved into a module.  For now, they are kept as
+//  part of the single file in order to reduce request time.  The functions are
+//  usually minimalistic and often deal with display formatting.
+//
+//------------------------------------------------------------------------------
 describe("removeWhiteSpace TEST function", function () {
     it("should remove the whitespace from input", function () {
         let string = "x^2 + 5x      - 4",
@@ -447,7 +675,7 @@ describe("selectStageHeading TEST function", function () {
 
 describe("changeHeading TEST function", function () {
     it("should change h3 header's name in the DOM", function () {
-        $("body").append("<h3></h3>");
+        setFixtures("<h3></h3>");
         changeHeading(FINAL);
         expect($("h3")).toContainText("Final");
 
@@ -501,36 +729,48 @@ describe("displayStageContent TEST function", function () {
 
 describe("setClosingInlineDelimeter TEST function", function () {
     it("should place an inline delimeter at the end of html text", function () {
-        // FINISH
+        setFixtures("<p id='test'>TEST</p>");
+        setClosingInlineDelimeter($("#test"));
+        expect($("#test")).toHaveText("TEST\\)");
     });
 });
 
 describe("setOpeningInlineDelimeter TEST function", function () {
     it("should place an inline delimeter at the beginning of html text", function () {
-        // FINISH
+        setFixtures("<p id='test'></p>");
+        setOpeningInlineDelimeter($("#test"));
+        expect($("#test")).toHaveText("\\(");
     });
 });
 
 describe("setClosingBlockDelimeter TEST function", function () {
     it("should place a block delimeter at the end of html text", function () {
-        // FINISH
+        setFixtures("<p id='test'>TEST</p>");
+        setClosingBlockDelimeter($("#test"));
+        expect($("#test")).toHaveText("TEST\\]");
     });
 });
 
 describe("setOpeningBlockDelimeter TEST function", function () {
     it("should place a block delimeter at the beginning of html text", function () {
-        // FINISH
+        setFixtures("<p id='test'></p>");
+        setOpeningBlockDelimeter($("#test"));
+        expect($("#test")).toHaveText("\\[");
     });
 });
 
 describe("displayInline TEST function", function () {
     it("should place inline delimiter tags around LaTeX math elements", function () {
-        // FINISH
+        setFixtures("<p id='test'></p>");
+        displayInline("TEST", $("#test"));
+        expect($("#test")).toHaveText("\\(TEST\\)");
     });
 });
 
 describe("displayAsBlock - FUNCTION TEST", function () {
     it("should place block delimiter tags around LaTex math elements", function () {
-        // FINISH
+        setFixtures("<p id='test'></p>");
+        displayAsBlock("TEST", $("#test"));
+        expect($("#test")).toHaveText("\\[{TEST}\\]");
     });
 });

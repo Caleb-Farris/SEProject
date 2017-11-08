@@ -223,72 +223,609 @@ function InputValidator() {
 //##############################################################################
 
 // -----------------------------------------------------------------------------
-// This section handles the calculations for stage FORMS.  Returns the 
-// polynomial that was entered in reduced (but not factored) form, i.e. if the
-// user enters 2x + 4x - 8, it would parse 6x - 8.
-// -----------------------------------------------------------------------------
-function RecognizableForms(polynomial) {
-    // Displaying the polynomial 
-    formsDisplay(polynomial);
-
-    return polynomial;
-}
-
-// -----------------------------------------------------------------------------
-// Used to locate the recognized forms in the polynomial and reduce it as much
-// as possible.
-// -----------------------------------------------------------------------------
-function reducedFormPoly(polynomial) {
-
-}
-
-// -----------------------------------------------------------------------------
-// Used to locate the recognized forms in a polynomial expression, such as
-// a^2 - b^2, sum/dif of cubes, etc.
-// -----------------------------------------------------------------------------
-function findRecognizedForms(polynomial) {
-    
-}
-
-// -----------------------------------------------------------------------------
-// Used to locate the recognized form:  *DIFFERENCE OF TWO SQUARES*
-// -----------------------------------------------------------------------------
-function parseDifferenceTwoSquares(expression) {
-
-}
-
-// -----------------------------------------------------------------------------
-// Used to locate the recognized form:  *DIFFERENCE OF TWO CUBES*
-// -----------------------------------------------------------------------------
-function parseDifferenceTwoCubes(expression) {
-
-}
-
-// -----------------------------------------------------------------------------
-// Used to locate the recognized form:  *SUM OF TWO CUBES*
-// -----------------------------------------------------------------------------
-function parseSumTwoCubes(expression) {
-
-}
-
-// -----------------------------------------------------------------------------
+//                          CLASS:  RECOGNIZEDFORMSDISPLAY
+//
 // Displaying the polynomial / reduced forms (returns void)
 // -----------------------------------------------------------------------------
-function formsDisplay(polynomial) {
-    // This delineation makes it easier for understanding the types when passed
-    // as parameters
-    let recognizedForms,
-        reducedPoly;
+function RecognizableFormsDisplay(forms) {
 
-    let poly = prepareForMatrix(polynomial);
-    displayAsBlock(poly, $("#formsInitPoly"));
+    this.display = function () {
+        let poly = prepareForMatrix(forms.getPolynomial());
+        displayAsBlock(poly, $("#formsInitPoly"));
+    }
+}
 
-    // Finding the special forms, separating them into variables as well
-    // as the final reduced polynomial form
-    //recognizedForms = findRecognizedForms(polynomial);
-    //reducedPoly = reducedFormPoly(polynomial);
-    //$("#formsDisplay").text("\\(" + recognizedForms + "\\");
-    
+// -----------------------------------------------------------------------------
+//                              CLASS:  RECOGNIZEDFORMS
+//
+// This class will noticed any special forms in the polynomial, as well as any
+// terms that have already been factored.
+// -----------------------------------------------------------------------------
+function RecognizableForms(poly) {
+    let polynomial,
+        factors = [],
+        sumCubes = [],
+        difCubes = [],
+        difSquares = [],
+        allTerms = [],
+        reducedTerms = [],
+        specialFactors = [],
+        finalRoots = [],
+        reduced = "",
+        hasForms = false,
+        hasFactors = false;
+
+    // CONSTRUCTOR
+    polynomial = formsSimplify(poly);
+    hasForms = depthFirstParse(polynomial);
+    hasFactors = factorCheck();
+    parseReducedTerms();
+    console.log(" THIS IS IT..........................." + reduced);
+
+    this.getPolynomial = function () {
+        return polynomial;
+    }
+
+    this.getFactors = function () {
+        return factors;
+    }
+
+    this.getSumCubes = function () {
+        return sumCubes;
+    }
+
+    this.getDifCubes = function () {
+        return difCubes;
+    }
+
+    this.getDifSquares = function () {
+        return difSquares;
+    }
+
+    this.getAllTerms = function () {
+        return allTerms;
+    }
+
+    this.getReducedTerms = function () {
+        return reducedTerms;
+    }
+
+    this.getReduced = function () {
+        return reduced;
+    }
+
+    this.getFinalRoots = function () {
+        return finalRoots;
+    }
+
+    this.getHasForms = function () {
+        return hasForms;
+    }
+
+    this.getHasFactors = function () {
+        return hasFactors;
+    }
+
+    // -------------------------------------------------------------------------
+    // Chooses which library to perform simplification - Algebrite or math.js.
+    // This is not a perfect solution, but is adequate.
+    // -------------------------------------------------------------------------
+    function formsSimplify(term) {
+        let expr = term;
+
+        if (hasParens(expr)) {
+            expr = math.simplify(math.parse(poly)).toString();
+        }
+        else {
+            expr = Algebrite.run(expr).toString();
+        }
+
+        console.log("      THIS IS THE Simplified STRING:  ---------->" + expr);
+        return expr;
+    }
+
+    // -------------------------------------------------------------------------
+    // Simple function for finding if expression contains parenthesis
+    // -------------------------------------------------------------------------
+    function hasParens(expr) {
+        let stack = [],
+            hasParens = false;
+
+        console.log("THIS HERE IS THE EXPR ^^^^^^^^^^^^&&&&&&&& " + expr);
+
+        for (let i = 0; i < expr.length; ++i) {
+            stack.push(expr[i]);
+
+            if (stack[stack.length - 1] === ")") {
+                hasParens = true;
+            } 
+        }
+
+        return hasParens;
+    }
+
+    // -------------------------------------------------------------------------
+    // Used to locate the recognized forms in a polynomial expression, such as
+    // a^2 - b^2, sum/dif of cubes, etc.
+    // -------------------------------------------------------------------------
+    function depthFirstParse(poly) {
+        let totalExpr = reduce(poly, false);
+
+        console.log("ALL EXPRESSIONS:  " + totalExpr);
+        console.log("TIME TO SEE HOW WE DID.  LET'S SEE THE RESULTS NOW:");
+        console.log("DIF_SQUARES: --->  " + difSquares);
+        console.log("SUM_CUBES:   --->  " + sumCubes);
+        console.log("DIF_CUBES:   --->  " + difCubes);
+        console.log("FACTORS:     --->  " + factors);
+
+        return specialFormsCheck();
+    }
+
+    // -------------------------------------------------------------------------
+    // Used simply to check if any special forms were parsed
+    // -------------------------------------------------------------------------
+    function specialFormsCheck() {
+        if (difSquares.length > 0 || difCubes.length > 0 || sumCubes.length > 0) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Used simply to check if any factors were parsed in the expression
+    // -------------------------------------------------------------------------
+    function factorCheck() {
+        if (factors.length > 0 ) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Used to locate the recognized forms in a polynomial expression, such as
+    // a^2 - b^2, sum/dif of cubes, etc.  If found, the parsed expressions is
+    // added to class instance variables, and the expression is returned as
+    // a list - the first position contains the parsed item, and the second 
+    // position denotes whether it has been reduced or not.
+    // -------------------------------------------------------------------------
+    function parseForms(expression) {
+        let hasSquares = parseDifSquares(expression),
+            hasSumCubes = parseSumCubes(expression),
+            hasDifCubes = parseDifCubes(expression);
+
+        console.log(' THIS IS THE EXPRESSION THAT WAS CHECKED FOR SPECIAL FORMS:  -->' + expression);
+        let parse = Algebrite.factor(expression).toString();
+        console.log(' THIS IS AFTER the EXPRESSION HAS BEEN FACTORED --->' + parse);
+
+        if (hasSquares) {
+            difSquares.push(parse);
+            grabFactor(parse, "square");
+            console.log("DIF_SQUARES: --->  " + difSquares);
+            return [parse, true]; // short circuit
+        }
+        else if (hasSumCubes) {
+            sumCubes.push(parse);
+            grabFactor(parse, "cube");
+            console.log("SUM_CUBES:   --->  " + sumCubes);
+            return [parse, true]; // short circuit
+        }
+        else if (hasDifCubes) {
+            difCubes.push(parse);
+            grabFactor(parse, "cube");
+            console.log("DIF_CUBES:   --->  " + difCubes);
+            return [parse, true]; // short circuit
+        }
+
+        return [parse, false];
+    }
+
+    // -------------------------------------------------------------------------
+    // Used to locate the recognized form:  *DIFFERENCE OF TWO SQUARES*
+    // -------------------------------------------------------------------------
+    function parseDifSquares(expression) {
+        console.log("IN DIFFERENCE SQUARES:  " + expression);
+
+        let expr = toMatrix(prepareForMatrix(expression)),
+            finalPos = expr.length - 1,
+            a = expr[0],
+            b = expr[finalPos];
+
+        if ((a > 0 && b > 0) || (a < 0 && b < 0)) {
+            return false; // cannot go on in this case
+        }
+
+        expr = findGCD(expr);
+
+        console.log("DIF SQUARES MATRIX:  " + expr);
+
+        // Probably a better way to do this, but it helps thinking in terms of 
+        // what is NOT a dif. of 2 squares.  
+        for (let i = 0; i < expr.length; ++i) {
+            if (expr.length === 1 || expr.length % 2 === 0) {
+                console.log("NOT SQUARE! LENGTH, IN 1");
+                break; // Too small, or not of appropriate length
+            }
+            else if (i === 0 && isNotSquare(expr[i])) {
+                console.log("NOT SQUARE! LEADING, IN 2");
+                break; // Not a square, leading coefficient
+            }
+            else if (i === finalPos && isNotSquare(expr[i])) {
+                console.log("NOT SQUARE! CONSTANT, IN 3");
+                break; // Not a square, constant
+            }
+            else if (i > 0 && i < finalPos && expr[i] !== 0) {
+                console.log("NOT SQUARE! MIDDLE TERMS, IN 4");
+                break; // Middle terms should not exist
+            }
+            else if (i === finalPos) { // final iteration and isSquare
+                console.log("MADE IT!!!");
+                return true;
+            }
+            else {
+                continue;
+            }
+        }
+
+        return false; // if make it here, then not isSquare
+    }
+
+    // -------------------------------------------------------------------------
+    // Used to locate the recognized form:  *DIFFERENCE OF TWO CUBES*
+    // -------------------------------------------------------------------------
+    function parseDifCubes(expression) {
+        console.log("IN DIFFERENCE CUBES:  " + expression);
+
+        let expr = toMatrix(prepareForMatrix(expression));
+        isDifCubes = cubeParser(expr, "dif");
+
+        if (isDifCubes) {
+            //cubeConverter(expr, expression[1]);
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Used to locate the recognized form:  *SUM OF TWO CUBES*
+    // -------------------------------------------------------------------------
+    function parseSumCubes(expression) {
+        console.log("IN SUM CUBES:  " + expression);
+
+        let expr = toMatrix(prepareForMatrix(expression));
+        isSumCubes = cubeParser(expr, "sum");
+
+        if (isSumCubes) {
+            //cubeConverter(expr, expression[1]);
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Used to locate any factors if the user happens to enter them in this way.
+    // For example, the user might enter (x - 5) as part of expression.  
+    // -------------------------------------------------------------------------
+    function parseFactor(expression) {
+        expression = removeWhiteSpace(expression);
+
+        console.log("IN FACTOR:  " + expression);
+
+        let degree = Algebrite.deg(expression),
+            index;
+
+        if (degree == 1) {
+            console.log(" HERE's THE SPECIAL FACTORS ------->>>>>>>" + specialFactors);
+            index = specialFactors.indexOf(expression);
+            if (index > -1) {
+                specialFactors.splice(index, 1);
+                return false;
+            }
+            else {
+                return true;
+            }
+        }
+    }
+
+    // This function makes sure to parse correctly when factors are involved
+    function checkForFactors(expr) {
+        let hasFactor = parseFactor(expr);
+
+        if (hasFactor) {
+            factors.push(expr);
+            return [expr, true];
+        }
+        else {
+            return [expr, false];
+        }
+    }
+
+    //--------------------------------------------------------------------------
+    //  Helper function used in parsing either sum or dif of cubes
+    //--------------------------------------------------------------------------
+    function cubeParser(expr, exprType) {
+        let finalPos = expr.length - 1,
+            a = expr[0],
+            b = expr[finalPos];
+
+        if (exprType === "sum" && ((a > 0 && b < 0) || (a < 0 && b > 0))) {
+            return false;  // Cannot go on in this case
+        }
+        else if (exprType === "dif" && ((a > 0 && b > 0) || (a < 0 && b < 0))) {
+            return false; // The same, cannot proceed
+        }
+
+        expr = findGCD(expr);
+
+        console.log("MATRIX in CUBE_PARSER:  (AFTER GCD HAS BEEN FOUND!) --->***" + expr);
+
+        // Probably a better way to do this, but it helps thinking in terms of 
+        // what is NOT a dif/sum of 2 cubes.  
+        for (let i = 0; i < expr.length; ++i) {
+            if (expr.length === 1 || finalPos % 3 !== 0) {
+                console.log("NOT CUBE! LENGTH, IN 1");
+                break; // Too small, or not of appropriate length
+            }
+            else if (i === 0 && isNotCube(expr[i])) {
+                console.log("NOT CUBE, LEADING, IN 2");
+                break;
+            }
+            else if (i === finalPos && isNotCube(expr[i])) {
+                console.log("NOT CUBE! CONSTANT, IN 3");
+                break;
+            }
+            else if (i > 0 && i < finalPos && expr[i] !== 0) {
+                console.log("NOT CUBE! MIDDLE TERMS, IN 4");
+                break; // Middle terms should not exist
+            }
+            else if (i === finalPos) {
+                console.log("MADE IT!!!");
+                return true; 
+            }
+            else {
+                continue;
+            }
+        }
+
+        // If made it here, is not a cube
+        return false;
+    }
+
+    //--------------------------------------------------------------------------
+    // Locates the 'leftover' terms; this is the reduced polynomial after all
+    // special forms and factors have been parsed
+    //--------------------------------------------------------------------------
+    function parseReducedTerms() {
+        if (allTerms.length > 0) {
+            allTerms.forEach(function (term) {
+                console.log("WHAT THE DEUCE: " + term[1]);
+                if (term[1] === false) {
+                    reducedTerms.push(term[0]);
+                }
+            });
+
+            if (reducedTerms.length > 1) {
+                let test = reducedTerms.join("*");
+                console.log("THIS IS the compiled, joined RESULT:  WAIT FOR IT....... ---> @ :" + test);
+                test = Algebrite.run(test).toString();
+                console.log("...............this is........the FINAL COUNTDOWN," +
+                    "DADADA, DA.DADA DA DA DA. ---> @ :" + test);
+                reduced = test;
+            }
+            else if (reducedTerms.length === 1) {
+                reduced = reducedTerms[0];
+            }
+        }
+    }
+
+    //--------------------------------------------------------------------------
+    // Locates GCD for the terms in the matrix
+    //--------------------------------------------------------------------------
+    function findGCD(expr) {
+        if (expr.length === 1) {
+            return false;
+        }
+
+        let finalPos = expr.length - 1,
+            a = expr[0],
+            b = expr[finalPos],
+            gcd;
+
+        //Make sure first that it is a candidate for special forms (necessary?)
+        for (let i = 0; i < expr.length; ++i) {
+            if (i > 0 && i < finalPos && expr[i] !== 0) {
+                return false;
+            }
+        }
+
+        gcd = Algebrite.gcd(a, b);
+
+        if (gcd > 1) {
+            if (a < 0) {
+                expr[0] = expr[0] / -gcd;
+                expr[finalPos] = expr[finalPos] / -gcd;
+            } 
+            else {
+                expr[0] = expr[0] / gcd;
+                expr[finalPos] = expr[finalPos] / gcd;
+            }
+        }
+
+        return expr;
+    }
+
+    //--------------------------------------------------------------------------
+    //  Helper function for locating non-cubes
+    //--------------------------------------------------------------------------
+    function isNotCube(number) {
+        return (number % Math.cbrt(number) !== 0);
+    }
+
+    //--------------------------------------------------------------------------
+    //  Helper function for locating non-squares
+    //--------------------------------------------------------------------------
+    function isNotSquare(number) {
+        number = Math.abs(number);
+        return (number % Math.sqrt(number) !== 0);
+    }
+
+    //--------------------------------------------------------------------------
+    //  Performs reduction for each expression and sub expression
+    //--------------------------------------------------------------------------
+    function reduce(expression, isReduced) {
+        console.log("EXPRESSION IN REDUCE:  " + expression);
+
+        let stack = [],
+            noParens = true,
+            expr = [],
+            tempTerms = [],
+            parse = "",
+            stackString = "",
+            reduceFactors;
+
+        expression = removeWhiteSpace(expression);
+        expression = trimMultSigns(expression);
+
+        for (let i = 0; i < expression.length; ++i) {
+            stack.push(expression[i]);
+
+            if (stack[stack.length - 1] === ")") {
+
+                for (let j = stack.length - 1; stack[j] !== "("; j--) {
+                    expr.push(stack.pop());
+                }
+
+                expr.push(stack.pop()); //make sure to grab "("
+                parse = expr.reverse().join("");
+                parse = parseForms(parse);
+
+                if (isReduced) {
+                    tempTerms.push([parse[0], isReduced]);
+                }
+                else {
+                    tempTerms.push([parse[0], parse[1]]);
+                }
+
+                noParens = false;
+                expr = []; // reset 
+            }
+        }
+
+        console.log("STACK : " + stack);
+
+        // This branch is either a final node being reduced, or an initial
+        // expression that does not contain parenthesis
+        if (noParens) {
+            if (isReduced) {
+                parse = parseForms(expression);
+                reduceFactors = checkForFactors(parse[0]);
+                allTerms.push([parse[0], isReduced]);
+            }
+            else {
+                parse = parseForms(expression);
+                reduceFactors = checkForFactors(parse[0]);
+                if (parse[1]) {
+                    allTerms.push([parse[0], parse[1]]);
+                }
+                else {
+                    allTerms.push([parse[0], reduceFactors[1]]);
+                }
+            }
+            
+            return allTerms; 
+        }
+        // This branch represents what has NOT been popped off the stack, i.e.
+        // parts of the expression outside of a parenthesis context
+        else {
+            if (stack.length > 0) {
+                try {
+                    stackString = trimMultSigns(stack.join(""));
+                    if (stackString) {
+                        math.parse(stackString);
+                        tempTerms.push([stackString, isReduced]);
+                    }
+                }
+                catch (error) {
+                    console.log("Unable to parse stack expression: " + error);
+                }
+            }
+
+            console.log("THIS IS THE TEMP TERMS @#@#!!!!:  " + tempTerms);
+
+            // Each term is recursively reduced.  The second param passed to
+            // reduce keeps up with whether it is a special form/factor
+            tempTerms.forEach(function (term) {
+                reduce(term[0], term[1]); 
+            });
+
+            return allTerms;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Pulls out factors from recognized forms so that it can be distinguished 
+    // whether the factor comes from a sp. form or is a genuine factor.
+    // -------------------------------------------------------------------------
+    function grabFactor(term, type) {
+        let expression = term,
+            stack = [],
+            expr = [],
+            temp = [],
+            parse = "",
+            termLength;
+
+        expression = removeWhiteSpace(expression);
+        expression = trimMultSigns(expression);
+
+        for (let i = 0; i < expression.length; ++i) {
+            stack.push(expression[i]);
+
+            if (stack[stack.length - 1] === ")") {
+
+                for (let j = stack.length - 1; stack[j] !== "("; j--) {
+                    expr.push(stack.pop());
+                }
+
+                //expr.push(stack.pop()); //make sure to grab "("
+                expr.splice(0, 1); // remove beginning paren
+                parse = expr.reverse().join("");
+                temp.push(parse);
+                expr = []; // reset 
+            }
+        }
+
+        console.log("THIS IS THE STACK IN 'isFACTORED:  $%$%$%" + stack);
+        termLength = temp.length - 2;
+
+        if (type === "square") {
+            specialFactors.push(temp[termLength]);
+            specialFactors.push(temp[termLength + 1]);
+        }
+        else if (type === "cube") {
+            specialFactors.push(temp[termLength]);
+        }
+    }
+
+    //--------------------------------------------------------------------------
+    //  Determines if first term in expression is negative.  Algebrite only 
+    //  factors out a -1 when the first term is negative, so this must be 
+    //  considered when parsing.
+    //--------------------------------------------------------------------------
+    function firstTermNegative(stack) {
+        if (stack[0] === "-" && stack.length === 1) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
 }
 
 //##############################################################################
@@ -808,7 +1345,7 @@ function SyntheticDivisionDisplay(syn, results) {
         // Handling conclusion 
         if (results.remainder === 0 && isFinal) {
             $("#syn-summary").removeClass("hidden");
-            displayAsBlock(syn.getActualRoots(), $("#syn-actual-roots"));
+            displayAsBlock(syn.getRationalRoots(), $("#syn-rational-roots"));
         }
         else if (results.remainder === 0) {
             $("#syn-found-root").removeClass("hidden");
@@ -823,7 +1360,7 @@ function SyntheticDivisionDisplay(syn, results) {
                                                     syn-2nd-drawing,  \
                                                     syn-3rd-drawing,  \
                                                     syn-final-drawing,\
-                                                    syn-actual-roots"]);
+                                                    syn-rational-roots"]);
     }
 
     //--------------------------------------------------------------------------
@@ -981,7 +1518,8 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
         maxRoots = posRootCount[0] + negRootCount[0],
         posRoots = possibleRoots.pos,
         negRoots = possibleRoots.neg,
-        actualRoots = [],
+        irrationalRoots = [],
+        rationalRoots = [],
         guessedIds = [],
         remainingIds = [],
         polynomial = poly,
@@ -1023,8 +1561,12 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
         return remainingIds;
     }
 
-    this.getActualRoots = function () {
-        return actualRoots;
+    this.getIrrationalRoots = function () {
+        return irrationalRoots;
+    }
+
+    this.getRationalRoots = function () {
+        return rationalRoots;
     }
 
     this.getPolynomial = function () {
@@ -1085,7 +1627,7 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
                             finished = false;
 
                         if (results.foundRoot) {
-                            actualRoots.push(results.r);
+                            rationalRoots.push(results.r);
                         }
 
                         guessedIds.push($id);
@@ -1143,7 +1685,7 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
     //  Determines if the user has found all the possible rational roots.
     //--------------------------------------------------------------------------
     function hasFinished() {
-        if (remainingIds.length === 0 || actualRoots.length === maxRoots) {
+        if (remainingIds.length === 0 || rationalRoots.length === maxRoots) {
             return true;
         }
         else {
@@ -1236,6 +1778,7 @@ var main = function () {
         return new InputValidator().validate();
     });
 
+
     // Helps cut down on the total amount of HTTP requests.
     if (top.location.pathname === '/Tutorial') {
         let polynomial,         // POLYNOMIAL for all stages
@@ -1244,13 +1787,12 @@ var main = function () {
 
 //###################################FORMS######################################
 
-        // TODO !!!!!! FINISH this part!
         // Grabbing the data attribute set from the server, which was stored by
         // the Model class.  This is quicker than contacting the server.
         polynomial = ($("#initialBackendPolyString").data("poly"));
         let recogForms = new RecognizableForms(polynomial),
             stage = new Stage(FORMS);
-        // TODO - will need a display function here, instead of in recogForms
+        new RecognizableFormsDisplay(recogForms).display();
         stage.markStageCompleted(FORMS);
         changeDisplay(stage.getCurrentStage(), FORMS);
 
@@ -1481,7 +2023,7 @@ function finalClickHandler(polynomial, syn, stage) {
         }
         else {
             displayAsBlock(polynomial, $("#final-poly"));
-            displayAsBlock(syn.getActualRoots(), $("#final-roots"));
+            displayAsBlock(syn.getRationalRoots(), $("#final-roots"));
             stage.markStageCompleted(FINAL);
             stage.setStage(stage.getCurrentStage(),
                 changeDisplay(stage.getCurrentStage(), FINAL));
@@ -1574,6 +2116,20 @@ function removeMultSigns(string) {
     return string.split("*").join("");
 }
 
+function trimMultSigns(string) {
+    string = removeWhiteSpace(string);
+
+    if (string[string.length - 1] === "*") {
+        string = string.slice(0, -1);
+    }
+
+    if (string[0] === "*") {
+        string = string.slice(1);
+    }
+
+    return string;
+}
+
 // -----------------------------------------------------------------------------
 // Places a '*' sign into a polynomial if, after it has been parsed and 
 // simplified, it still contains values that are adjacent to each other such
@@ -1587,7 +2143,6 @@ function sanitizeInput(string) {
     string = removeWhiteSpace(string);
 
     let stack = "",
-        added = 0,
         x = /[xX]/,
         num = /[0-9]/,
         plus = /[+]/,
