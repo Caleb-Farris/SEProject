@@ -250,6 +250,7 @@ function RecognizableForms(poly) {
         allTerms = [],
         reducedTerms = [],
         specialFactors = [],
+        irrationalOrComplexTerms = [],
         finalRoots = [],
         reduced = "",
         hasForms = false,
@@ -259,7 +260,7 @@ function RecognizableForms(poly) {
     polynomial = formsSimplify(poly);
     hasForms = depthFirstParse(polynomial);
     hasFactors = factorCheck();
-    parseReducedTerms();
+    reduced = parseReducedTerms();
     console.log(" THIS IS IT..........................." + reduced);
 
     this.getPolynomial = function () {
@@ -310,18 +311,23 @@ function RecognizableForms(poly) {
     // Chooses which library to perform simplification - Algebrite or math.js.
     // This is not a perfect solution, but is adequate.
     // -------------------------------------------------------------------------
-    function formsSimplify(term) {
-        let expr = term;
+    function formsSimplify(expr) {
+        let parse;
 
-        if (hasParens(expr)) {
-            expr = math.simplify(math.parse(poly)).toString();
+        //expr = math.simplify(math.parse(poly)).toString();
+        parse = checkMultiplicative(expr);
+
+        console.log("WHAT THE DVEIL (multiplicative) -->" + parse);
+        if (parse[1]) {
+            parse = math.simplify(parse[0]).toString();
         }
         else {
-            expr = Algebrite.run(expr).toString();
+            parse = parse[0];
         }
 
-        console.log("      THIS IS THE Simplified STRING:  ---------->" + expr);
-        return expr;
+        console.log(" THIS WAS A WHOLE DAMN DAY WORTH OF WORK RIGHT HERE (*(#$#&*& ---------------->" + parse);
+
+        return parse;
     }
 
     // -------------------------------------------------------------------------
@@ -342,6 +348,127 @@ function RecognizableForms(poly) {
         }
 
         return hasParens;
+    }
+
+    function checkMultiplicative(initParse) {
+        let expression,
+            stack = [],
+            globalStack = [],
+            globalStackPointer = 0,
+            exprQueue = "",
+            hasParen = false,
+            equalParen = false,
+            needsSimplifying = false,
+            expr = [],
+            parse = "",
+            globalParse = "",
+            stackParse = "",
+            finalParse = "",
+            leftParen = 0,
+            rightParen = 0,
+            tempRight = 0,
+            op = /[+-]/;
+
+        expression = removeWhiteSpace(initParse);
+        //expression = trimMultSigns(expression);
+
+        for (let i = 0; i < expression.length; ++i) {
+
+            if (leftParen === 0 && rightParen === 0) {
+                hasParen = false;
+            }
+
+            if (!hasParen) {
+                globalStack.push(expression[i]);
+
+                if (globalStack[globalStack.length - 1] === "(") {
+                    hasParen = true;
+                    globalStack.pop();
+                    if (globalStack.length > 0) {
+                        globalParse = globalStack.join("");
+                        globalParse = globalParse.substring(globalStackPointer, globalStack.length);
+                        exprQueue += globalParse;
+                        globalStackPointer = globalStack.length;
+                    }
+                }
+
+                // If the expression contains adding/subtracting of terms
+                if ((globalStack.length > 1 && op.test(globalStack[globalStack.length - 1]) &&
+                    globalStack[globalStack.length - 2] !== "(") ||
+                    (globalStack.length === 1 && op.test(globalStack[0]))) {
+                    globalParse = expression;
+                    globalParse = sanitizeInput(globalParse);
+                    globalParse = Algebrite.run(globalParse).toString();
+                    globalParse = removeWhiteSpace(globalParse);
+                    return [globalParse, false];
+                }
+            }
+
+            if (hasParen) {
+                stack.push(expression[i]);
+
+                console.log("WELL, here it is" + stack);
+                if (stack[stack.length - 1] === "(") {
+                    leftParen += 1;
+                }
+
+                if (stack[stack.length - 1] === ")") {
+                    rightParen += 1;
+
+                    expr.push(stack.pop());
+
+                    for (let j = stack.length - 1; rightParen > 0; j--) {
+                        if (stack[j] === "(") {
+                            if (rightParen <= leftParen) {
+                                leftParen -= 1;
+                            }
+                            rightParen -= 1;
+                        }
+                        else if (stack[j] === ")") {
+                            rightParen += 1;
+                        }
+                        else if (op.test(stack[j]) && rightParen === 1 && stack[j - 1] !== "(") {
+                            needsSimplifying = true;
+                        }
+
+                        if (rightParen === leftParen) {
+                            equalParen = true;
+                        }
+
+                        expr.push(stack.pop());
+                    }
+
+                    
+                    parse = expr.reverse().join("");
+
+                    console.log("THIS IS --------------> THE EXPRESSION IN MULTIPLICATIVE:  " + parse);
+                    console.log("FOLLOWED by:  needsSimplifying" + needsSimplifying);
+                    console.log("ALsO THE BLOBAL stack:" + globalStack);
+                    console.log("WHAT THE HELL, also right and left paren: " + rightParen + "left" + leftParen); 
+
+                    if (needsSimplifying) {
+                        parse = removeWhiteSpace(parse);
+                        parse = sanitizeInput(parse);
+                        parse = Algebrite.run(parse).toString();
+                        parse = "(" + parse + ")";
+                    }
+
+                    if (equalParen) {
+                        exprQueue += parse;
+                    }
+
+                    for (let k = 0; k < parse.length; ++k) {
+                        stack.push(parse[k]);
+                    }
+
+                    needsSimplifying = false; //reset
+                    equalParen = false;
+                    expr = []; // reset 
+                }
+            } 
+        }
+
+        return [exprQueue, true];
     }
 
     // -------------------------------------------------------------------------
@@ -400,6 +527,8 @@ function RecognizableForms(poly) {
         console.log(' THIS IS THE EXPRESSION THAT WAS CHECKED FOR SPECIAL FORMS:  -->' + expression);
         let parse = Algebrite.factor(expression).toString();
         console.log(' THIS IS AFTER the EXPRESSION HAS BEEN FACTORED --->' + parse);
+
+        // Sometimes, it will factor an 'x' out.  Do somethign about this factor
 
         if (hasSquares) {
             difSquares.push(parse);
@@ -521,6 +650,9 @@ function RecognizableForms(poly) {
         let degree = Algebrite.deg(expression),
             index;
 
+        // careful with this... it will also treat -3 (2x + 3) as factor !!!
+        // Nevermind, that is correct.  Still, make sure to only claim the 
+        // parenthesized part
         if (degree == 1) {
             console.log(" HERE's THE SPECIAL FACTORS ------->>>>>>>" + specialFactors);
             index = specialFactors.indexOf(expression);
@@ -532,6 +664,10 @@ function RecognizableForms(poly) {
                 return true;
             }
         }
+        else {
+
+        }
+
     }
 
     // This function makes sure to parse correctly when factors are involved
@@ -603,6 +739,8 @@ function RecognizableForms(poly) {
     // special forms and factors have been parsed
     //--------------------------------------------------------------------------
     function parseReducedTerms() {
+        let parse;
+
         if (allTerms.length > 0) {
             allTerms.forEach(function (term) {
                 console.log("WHAT THE DEUCE: " + term[1]);
@@ -612,17 +750,21 @@ function RecognizableForms(poly) {
             });
 
             if (reducedTerms.length > 1) {
-                let test = reducedTerms.join("*");
-                console.log("THIS IS the compiled, joined RESULT:  WAIT FOR IT....... ---> @ :" + test);
-                test = Algebrite.run(test).toString();
+                parse = reducedTerms.join("*");
+                console.log("THIS IS the compiled, joined RESULT:  WAIT FOR IT....... ---> @ :" + parse);
+                parse = Algebrite.run(parse).toString();
                 console.log("...............this is........the FINAL COUNTDOWN," +
-                    "DADADA, DA.DADA DA DA DA. ---> @ :" + test);
-                reduced = test;
+                    "DADADA, DA.DADA DA DA DA. ---> @ :" + parse);
             }
             else if (reducedTerms.length === 1) {
-                reduced = reducedTerms[0];
+                parse = reducedTerms[0];
+            }
+            else {
+                parse = false; // some sort of error
             }
         }
+
+        return parse;
     }
 
     //--------------------------------------------------------------------------
@@ -705,6 +847,7 @@ function RecognizableForms(poly) {
                 expr.push(stack.pop()); //make sure to grab "("
                 parse = expr.reverse().join("");
                 parse = parseForms(parse);
+                // Make sure to make it factor out a simple '()'
 
                 if (isReduced) {
                     tempTerms.push([parse[0], isReduced]);
@@ -748,6 +891,7 @@ function RecognizableForms(poly) {
                 try {
                     stackString = trimMultSigns(stack.join(""));
                     if (stackString) {
+
                         math.parse(stackString);
                         tempTerms.push([stackString, isReduced]);
                     }
@@ -801,8 +945,9 @@ function RecognizableForms(poly) {
             }
         }
 
-        console.log("THIS IS THE STACK IN 'isFACTORED:  $%$%$%" + stack);
+        console.log("THese are the TEMP TERMS IN  'isFACTORED:  $%$%$%" + temp);
         termLength = temp.length - 2;
+
 
         if (type === "square") {
             specialFactors.push(temp[termLength]);
@@ -810,6 +955,7 @@ function RecognizableForms(poly) {
         }
         else if (type === "cube") {
             specialFactors.push(temp[termLength]);
+            irrationalOrComplexTerms.push(temp[termLength + 1]);
         }
     }
 
@@ -1777,7 +1923,6 @@ var main = function () {
     $("form").on("submit", function () {
         return new InputValidator().validate();
     });
-
 
     // Helps cut down on the total amount of HTTP requests.
     if (top.location.pathname === '/Tutorial') {

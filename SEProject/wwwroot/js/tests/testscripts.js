@@ -129,13 +129,18 @@ describe("RecognizableForms - CLASS TEST", function () {
 
     let poly1 = "(x^2-4)((x-8)(x + 2)(3x^3 - 81))",
         poly2 = "x^3+8",
-        poly3 = "-2x^3-16",  
+        poly3 = "-2x^3-16",
         poly4 = "(x+2)(2x^3-4x^2+6x)",
         poly5 = "2x^2+4x-2",
+        poly6 = "(x+2)^2 - 4",
+        poly7 = "2x+7-8(x+2)",
+        poly8 = "(x-3)(x+2)+(x-1)", // WORKED!!! yesssssss
+        poly9 = "x^4-3x^3+7x^2-8x", // Make it get factors
+        poly10 = "x(x-7+8x(4-x))",
         parsed;
 
     it("should be able to parse expression for difference of two squares", function () {
-        //let forms = new RecognizableForms(poly1);
+        let forms = new RecognizableForms(poly10);
         //parsed = forms.getDifTwoSquares();
         //expect(parsed).toBe("x^2-4");
     });
@@ -153,7 +158,7 @@ describe("RecognizableForms - CLASS TEST", function () {
     });
 
     it("should be able to parse expression for already factored forms, i.e. x+2", function () {
-        let forms = new RecognizableForms(poly4);
+        //let forms = new RecognizableForms(poly4);
         //parsed = forms.getFactorable();
         //expect(parsed).toBe("x+2");
     });
@@ -163,6 +168,14 @@ describe("RecognizableForms - CLASS TEST", function () {
         //parsed = forms.isIrrational();
         //expect(parsed).toBe("x^2+2x-1");
     });
+
+    it("should be able to parse multiplicities", function () {
+        //let forms = new RecognizableForms(poly6);
+    });
+
+    it("should be able to parse expression for difference of two squares", function () {
+        //let forms = new RecognizableForms(poly7);
+    });
 });
 
 describe("RecognizableFormsDisplay - CLASS TEST", function () {
@@ -170,9 +183,9 @@ describe("RecognizableFormsDisplay - CLASS TEST", function () {
         '<p id="formsDisplay"></p>' +
         '<p id="formsReduced"></p>');
 
-    let poly1 = "x^2-4",
-        forms = new RecognizableForms(poly1),
-        display = new RecognizableFormsDisplay(forms).display();
+    //let poly1 = "x^2-4",
+    //    forms = new RecognizableForms(poly1),
+    //    display = new RecognizableFormsDisplay(forms).display();
 
     it("should be able to display the parsed polynomial", function () {
         //expect($("#formsInitPoly")).toBe("x^2-4");
