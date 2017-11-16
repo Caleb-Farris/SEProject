@@ -92,15 +92,19 @@ function InputValidator() {
         // First, we grab the input and check if it is valid
         let input = getPolynomialInput(),
             isValid = false,
-            hasRoots = false;
+            polyProperties;
 
         if (input) {
             // Even if it is valid, we must check if any roots exist
-            hasRoots = checkForRoots(input);
-            console.log("HASROOTS:  " + hasRoots);
+            polyProperties = checkForRoots(input);
+            console.log("HASROOTS:  " + polyProperties.hasRoots);
+            console.log("INVALID DEGREE " + polyProperties.invalidDegree);
 
-            if (hasRoots) {
-                alert("It worked!"); // FOR DEBUGGING.  ERASE LATER!!!
+
+            if (polyProperties.invalidDegree) {
+                displayDegreeError();
+            }
+            else if (polyProperties.hasRoots) {
                 isValid = true;
             }
             else {
@@ -109,9 +113,9 @@ function InputValidator() {
         }
         else {
             // Display different error message based on the past flow of events
-            if (!hasRoots) {
-                displayInputError();
-            }
+            //if (!polyProperties.hasRoots) {
+            displayInputError();
+            //}
         }
 
         return isValid;
@@ -125,7 +129,6 @@ function InputValidator() {
     // the user types invalid input.
     // -----------------------------------------------------------------------------
     function displayInputError() {
-        alert("Invalid input :("); // FOR DEBUGGING.  ERASE LATER!!!
         $("#polyInputError").text("*Please enter a valid polynomial expression");
         $("#polyInput").val("");
     }
@@ -135,8 +138,16 @@ function InputValidator() {
     // the user input does not have any roots.
     // -----------------------------------------------------------------------------
     function displayNoRootsError() {
-        alert("Doesn't have roots..."); // PLEASE...COME ON
         $("#polyInputError").text("*No rational roots exist.  Please try again.");
+        $("#polyInput").val("");
+    }
+
+    // -----------------------------------------------------------------------------
+    // This is used to display the validation error on the index page, in the event
+    // the user inputs a polynomial higher than the 10th degree.
+    // -----------------------------------------------------------------------------
+    function displayDegreeError() {
+        $("#polyInputError").text("*Please limit input to below the 10th degree.");
         $("#polyInput").val("");
     }
 
@@ -188,21 +199,31 @@ function InputValidator() {
         try {
             let initParse = math.simplify(math.parse(poly)).toString();
             console.log("INITIAL PARSE:  " + initParse);
-            let corrected = sanitizeInput(initParse);
-            console.log("CORRECTED: " + corrected);
-            let expanded = Algebrite.run(corrected);
-            console.log("EXPANDED: " + expanded);
-            let polyMatrix = toMatrix(expanded);
+            let expanded = combineLikeTerms(initParse);
+            let polyMatrix = toMatrix(expanded),
+                degree = FloPoly.degree(polyMatrix);
 
-            let rootTest = FloPoly.allRoots(polyMatrix).length,
+            console.log("THIS IS THE DEGREE OF POLYMATRIX:  " + degree);
+
+            if (degree >= 10) {
+                return { invalidDegree: true, hasRoot: hasRoot };
+            }
+
+            let roots = FloPoly.allRoots(polyMatrix),
+                rootTest = roots.length,
                 zeroRootTest = FloPoly.evaluateAt0(polyMatrix);
 
             console.log("POLYMATRIX:  " + polyMatrix);
+            console.log("ALL ROOTS:  " + roots);
             console.log("TEST LENGTH:  " + rootTest);
             console.log("TEST 0 EVAL:  " + zeroRootTest);
+            alert("Wait a sec...");
 
             // If roots are returned from allRoots(), then rational roots exist
-            if (rootTest > 0 || zeroRootTest == 0) {
+            if (degree > 3 && (rootTest > 0 || zeroRootTest == 0) || hasRational(roots)) {
+                hasRoot = true;
+            }
+            else if ((rootTest > 0 || zeroRootTest == 0) || hasRational(roots)) {
                 hasRoot = true;
             }
         }
@@ -210,7 +231,50 @@ function InputValidator() {
             console.log(error);
         }
 
-        return hasRoot;
+        return { invalidDegree: false, hasRoots: hasRoot };
+    }
+
+    // -------------------------------------------------------------------------
+    // Checks if the roots contain irratonal numbers
+    // -------------------------------------------------------------------------
+    function hasRational(roots) {
+        let error,
+            rounded,
+            rationalCount = 0;
+
+        const pass = 0.000000000001;
+
+        roots.forEach(function (root) {
+            if (!Number.isInteger(root) && findPrecision(root) >= 12) {
+                rounded = Math.round10(root, -1);
+                error = Math.abs(root - rounded); // checking if close to int
+                console.log("#####THE ROOT#####" + root);
+                console.log("-----ROUNDED------" + rounded);
+                console.log("*******ERROR******" + error);
+                if (error < pass) {
+                    rationalCount += 1;
+                }
+                console.log(" .... AND NOW THE RATIONAL ROOT COUNT" + rationalCount);
+            }
+            else {
+                rationalCount += 1;
+            }
+        });
+
+        if (rationalCount > 0) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Calculates the precision of a number, if it has a decimal
+    // -------------------------------------------------------------------------
+    function findPrecision(number) {
+        let numString = number.toString();
+        return (numString.split('.')[1] || []).length;
     }
 }
 
@@ -227,11 +291,165 @@ function InputValidator() {
 //
 // Displaying the polynomial / reduced forms (returns void)
 // -----------------------------------------------------------------------------
-function RecognizableFormsDisplay(forms) {
+function RecognizableFormsDisplay(poly, forms) {
 
     this.display = function () {
-        let poly = prepareForMatrix(forms.getPolynomial());
-        displayAsBlock(poly, $("#formsInitPoly"));
+        displayAsBlock(poly, $("#forms-init-poly"));
+
+        let factors = forms.getFactors(),
+            sumCubes = forms.getSumCubesTotal(),
+            difCubes = forms.getDifCubesTotal(),
+            difSquares = forms.getDifSquaresTotal(),
+            complex = forms.getIrrationalOrComplexTerms(),
+            complexRootCount = forms.getComplexRootCount(),
+            finalRoots = forms.getFinalRoots(),
+            reduced = forms.getReduced(),
+            hasForms = forms.getHasForms(),
+            hasFactors = forms.getHasFactors(),
+            hasBeenReduced = false;
+
+        if (hasForms && hasFactors) {
+            displayFull(difSquares, difCubes, sumCubes, factors);
+            hasBeenReduced = true;
+        }
+        else if (hasForms) {
+            displayOnlyForms(difSquares, difCubes, sumCubes);
+            hasBeenReduced = true;
+        }
+        else if (hasFactors) {
+            displayOnlyFactors(factors);
+            hasBeenReduced = true;
+        }
+        else {
+            displayNone();
+        }
+
+        if (complexRootCount > 0) {
+            displayComplex(complex);
+            hasBeenReduced = true;
+        }
+
+        if (hasBeenReduced && reduced) {
+            displayFinal(reduced, finalRoots);
+        }
+        else if (hasBeenReduced && !(reduced)) {
+            displayFinished();
+        }
+        else {
+            displayNull();
+        }
+
+        MathJax.Hub.Queue(["Typeset", MathJax.Hub, "forms-init-poly, forms-content"]);
+    }
+
+    // -------------------------------------------------------------------------
+    // For the BRANCH:  Has both special forms and normal factors
+    // -------------------------------------------------------------------------
+    function displayFull(difSquares, difCubes, sumCubes, factors, reduced) {
+        $(".forms-content").append('<p class="p-items">' +
+            'We can pull out the following special forms:</p >');
+
+        displayForms(difSquares, difCubes, sumCubes);
+
+        $(".forms-content").append('<p class="p-items">' +
+            'We can also also reduce the polynomial and pull out the ' +
+            'following factors:</p >');
+
+        displayFactors(factors);
+    }
+
+    // -------------------------------------------------------------------------
+    // For the BRANCH:  Has special forms, but no normal factors
+    // -------------------------------------------------------------------------
+    function displayOnlyForms(difSquares, difCubes, sumCubes) {
+        $(".forms-content").append('<p class="p-items">' +
+            'We can pull out the following special forms:</p >');
+
+        displayForms(difSquares, difCubes, sumCubes);
+    }
+
+    // -------------------------------------------------------------------------
+    // For the BRANCH:  No special forms, but has factors
+    // -------------------------------------------------------------------------
+    function displayOnlyFactors(factors) {
+        $(".forms-content").append('<p class="p-items">' +
+            'We cannot pull out any special forms.  However, we can reduce ' +
+            'the polynomial and pull out the following factors:  </p >');
+
+        displayFactors(factors);
+    }
+
+    // -------------------------------------------------------------------------
+    // For the BRANCH:  Contains neither special forms nor factors
+    // -------------------------------------------------------------------------
+    function displayNone() {
+        $(".forms-content").append('<p class="p-items">' +
+            'We cannot pull out any special forms, nor can we reduce the ' +
+            'polynomial through factoring. </p >');
+    }
+
+    // -------------------------------------------------------------------------
+    // For the BRANCH:  When reduction completely factors the expression
+    // -------------------------------------------------------------------------
+    function displayFinished() {
+        $(".forms-content").append('<p class="p-items">' +
+            'The polynomial has been reduced to its lowest form.  No further ' +
+            'stages are necessary. <a href="http://localhost:53945/Index"> Click here</a> to ' +
+            'enter another polynomial. </p > ');
+        $("#FORMS-to-RZT").addClass("hidden");
+    }
+
+    // -------------------------------------------------------------------------
+    // Helper to display forms
+    // -------------------------------------------------------------------------
+    function displayForms(difSquares, difCubes, sumCubes) {
+        if (difSquares.length > 0) {
+            $(".forms-content").append('\\[' + difSquares + '\\]');
+        }
+
+        if (difCubes.length > 0) {
+            $(".forms-content").append('\\[' + difCubes + '\\]');
+        }
+
+        if (sumCubes.length > 0) {
+            $(".forms-content").append('\\[' + sumCubes + '\\]');
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Helper to display factors
+    // -------------------------------------------------------------------------
+    function displayFactors(factors) {
+        $(".forms-content").append('\\[' + factors + '\\]');
+    }
+
+    // -------------------------------------------------------------------------
+    // Helper to display imaginary or irrational factors
+    // -------------------------------------------------------------------------
+    function displayComplex(complex) {
+        $(".forms-content").append('<p class="p-items">' +
+            'In this case, the polynomial contains a pair of complex roots in ' +
+            'the following expression: </p >\\[' + complex + '\\]');
+    }
+
+    // -------------------------------------------------------------------------
+    // Helper to display the final, reduced polynomial
+    // -------------------------------------------------------------------------
+    function displayFinal(reduced, roots) {
+        $(".forms-content").append('<p class="p-items">' +
+            'The polynomial has now been reduced to the following form:</p >\\[' +
+            reduced + '\\] <p class="p-items"> The following roots were discovered:</p >\\[' +
+            roots + '\\]');
+    }
+
+    // -------------------------------------------------------------------------
+    // Helper to display the final case in which no reductions whatsoever have
+    // occured
+    // -------------------------------------------------------------------------
+    function displayNull() {
+        $(".forms-content").append('<p class="p-items">' +
+            'The polynomial must be analyzed through other means in order to ' + 
+            'reduced it further.');
     }
 }
 
@@ -245,23 +463,32 @@ function RecognizableForms(poly) {
     let polynomial,
         factors = [],
         sumCubes = [],
+        sumCubesTotal = [],
         difCubes = [],
+        difCubesTotal = [],
         difSquares = [],
+        difSquaresTotal = [],
         allTerms = [],
         reducedTerms = [],
-        specialFactors = [],
         irrationalOrComplexTerms = [],
+        complexRootCount = 0,
         finalRoots = [],
+        finalFactors = [],
         reduced = "",
         hasForms = false,
-        hasFactors = false;
+        hasFactors = false,
+        isMult;
 
     // CONSTRUCTOR
     polynomial = formsSimplify(poly);
     hasForms = depthFirstParse(polynomial);
     hasFactors = factorCheck();
     reduced = parseReducedTerms();
-    console.log(" THIS IS IT..........................." + reduced);
+    finalFactors = parseFinalFactors();
+
+    console.log("#####################REDUCED_POLYNOMIAL#################" + reduced);
+    console.log("*************************FINAL_ROOTS*********************" + finalRoots);
+    console.log("************************FINAL_FACTORS*********************" + finalFactors);
 
     this.getPolynomial = function () {
         return polynomial;
@@ -283,6 +510,18 @@ function RecognizableForms(poly) {
         return difSquares;
     }
 
+    this.getSumCubesTotal = function () {
+        return sumCubesTotal;
+    }
+
+    this.getDifCubesTotal = function () {
+        return difCubesTotal;
+    }
+
+    this.getDifSquaresTotal = function () {
+        return difSquaresTotal;
+    }
+
     this.getAllTerms = function () {
         return allTerms;
     }
@@ -291,12 +530,24 @@ function RecognizableForms(poly) {
         return reducedTerms;
     }
 
-    this.getReduced = function () {
-        return reduced;
+    this.getIrrationalOrComplexTerms = function () {
+        return irrationalOrComplexTerms;
+    }
+
+    this.getComplexRootCount = function () {
+        return complexRootCount;
     }
 
     this.getFinalRoots = function () {
         return finalRoots;
+    }
+
+    this.getFinalFactors = function () {
+        return finalFactors;
+    }
+
+    this.getReduced = function () {
+        return reduced;
     }
 
     this.getHasForms = function () {
@@ -314,18 +565,18 @@ function RecognizableForms(poly) {
     function formsSimplify(expr) {
         let parse;
 
-        //expr = math.simplify(math.parse(poly)).toString();
         parse = checkMultiplicative(expr);
+        isMult = parse[1];
 
-        console.log("WHAT THE DVEIL (multiplicative) -->" + parse);
-        if (parse[1]) {
-            parse = math.simplify(parse[0]).toString();
+        console.log("AFTER CHECK MULTIPLICATIVE ---------------->" + parse);
+        if (isMult) {
+            parse = math.parse(parse[0]).toString();
         }
         else {
             parse = parse[0];
         }
 
-        console.log(" THIS WAS A WHOLE DAMN DAY WORTH OF WORK RIGHT HERE (*(#$#&*& ---------------->" + parse);
+        console.log(" THIS IS @ THE END OF FORMS_SIMPLIFY ---------------->" + parse);
 
         return parse;
     }
@@ -337,19 +588,24 @@ function RecognizableForms(poly) {
         let stack = [],
             hasParens = false;
 
-        console.log("THIS HERE IS THE EXPR ^^^^^^^^^^^^&&&&&&&& " + expr);
+        console.log("THIS HERE IS THE EXPR in hasParens:  " + expr);
 
         for (let i = 0; i < expr.length; ++i) {
             stack.push(expr[i]);
 
             if (stack[stack.length - 1] === ")") {
                 hasParens = true;
-            } 
+            }
         }
 
         return hasParens;
     }
 
+    // -------------------------------------------------------------------------
+    // Checks if the polynomial term is a set of multiplicative factors, or an
+    // expression that is being added or subtracted.  This is a very complex 
+    // function, but it performs the necessary job.
+    // -------------------------------------------------------------------------
     function checkMultiplicative(initParse) {
         let expression,
             stack = [],
@@ -367,6 +623,7 @@ function RecognizableForms(poly) {
             leftParen = 0,
             rightParen = 0,
             tempRight = 0,
+
             op = /[+-]/;
 
         expression = removeWhiteSpace(initParse);
@@ -395,11 +652,10 @@ function RecognizableForms(poly) {
                 // If the expression contains adding/subtracting of terms
                 if ((globalStack.length > 1 && op.test(globalStack[globalStack.length - 1]) &&
                     globalStack[globalStack.length - 2] !== "(") ||
-                    (globalStack.length === 1 && op.test(globalStack[0]))) {
-                    globalParse = expression;
-                    globalParse = sanitizeInput(globalParse);
-                    globalParse = Algebrite.run(globalParse).toString();
-                    globalParse = removeWhiteSpace(globalParse);
+                    (globalStack.length === 1 && op.test(globalStack[0])))
+                {
+                    globalParse = removeWhiteSpace(combineLikeTerms(expression));
+                    globalParse = removeWhiteSpace(Algebrite.simplify(globalParse).toString());
                     return [globalParse, false];
                 }
             }
@@ -407,7 +663,7 @@ function RecognizableForms(poly) {
             if (hasParen) {
                 stack.push(expression[i]);
 
-                console.log("WELL, here it is" + stack);
+                console.log("WELL, here's the stack...  " + stack);
                 if (stack[stack.length - 1] === "(") {
                     leftParen += 1;
                 }
@@ -415,7 +671,16 @@ function RecognizableForms(poly) {
                 if (stack[stack.length - 1] === ")") {
                     rightParen += 1;
 
-                    expr.push(stack.pop());
+                    // peeking ahead for exponents
+                    if (expression[i + 1] !== null && expression[i + 2] !== null) {
+                        if (expression[i + 1] === "^") {
+                            expr.push(expression[i + 2]);
+                            expr.push(expression[i + 1]);
+                            i += 2;
+                        }
+                    }
+
+                    expr.push(stack.pop()); // placing ')' onto expr
 
                     for (let j = stack.length - 1; rightParen > 0; j--) {
                         if (stack[j] === "(") {
@@ -425,6 +690,9 @@ function RecognizableForms(poly) {
                             rightParen -= 1;
                         }
                         else if (stack[j] === ")") {
+                            if (rightParen < leftParen) {
+                                leftParen += 1;
+                            }
                             rightParen += 1;
                         }
                         else if (op.test(stack[j]) && rightParen === 1 && stack[j - 1] !== "(") {
@@ -438,18 +706,18 @@ function RecognizableForms(poly) {
                         expr.push(stack.pop());
                     }
 
-                    
+
                     parse = expr.reverse().join("");
 
                     console.log("THIS IS --------------> THE EXPRESSION IN MULTIPLICATIVE:  " + parse);
-                    console.log("FOLLOWED by:  needsSimplifying" + needsSimplifying);
-                    console.log("ALsO THE BLOBAL stack:" + globalStack);
-                    console.log("WHAT THE HELL, also right and left paren: " + rightParen + "left" + leftParen); 
+                    console.log("FOLLOWED by:  needsSimplifying:  " + needsSimplifying);
+                    console.log("Also THE GLOBAL stack:" + globalStack);
+                    console.log("Right paren: " + rightParen + ".. and left paren:  " + leftParen);
 
                     if (needsSimplifying) {
                         parse = removeWhiteSpace(parse);
                         parse = sanitizeInput(parse);
-                        parse = Algebrite.run(parse).toString();
+                        parse = Algebrite.simplify(parse).toString();
                         parse = "(" + parse + ")";
                     }
 
@@ -465,7 +733,7 @@ function RecognizableForms(poly) {
                     equalParen = false;
                     expr = []; // reset 
                 }
-            } 
+            }
         }
 
         return [exprQueue, true];
@@ -476,14 +744,27 @@ function RecognizableForms(poly) {
     // a^2 - b^2, sum/dif of cubes, etc.
     // -------------------------------------------------------------------------
     function depthFirstParse(poly) {
-        let totalExpr = reduce(poly, false);
+        let totalExpr = reduce(poly, false, 1, true);
 
-        console.log("ALL EXPRESSIONS:  " + totalExpr);
-        console.log("TIME TO SEE HOW WE DID.  LET'S SEE THE RESULTS NOW:");
+        // Need to pull out factors from the special forms
+        factorSpecialForms(difSquares);
+        factorSpecialForms(sumCubes);
+        factorSpecialForms(difCubes);
+
+        console.log("********************************************************");
+        console.log("ALL EXPRESSIONS EXTRACTED:  " + totalExpr);
+        console.log("***TIME TO SEE HOW WE DID. LET'S SEE THE RESULTS NOW:***");
         console.log("DIF_SQUARES: --->  " + difSquares);
         console.log("SUM_CUBES:   --->  " + sumCubes);
         console.log("DIF_CUBES:   --->  " + difCubes);
         console.log("FACTORS:     --->  " + factors);
+        console.log("IRRATIONAL OR COMPLEX: --->  " + irrationalOrComplexTerms);
+        console.log("...AND THE COMPLEX COUNT: --->" + complexRootCount);
+        console.log("**************AND FOR THE EASE OF DISPLAY***************");
+        console.log("DIF_SQUARES TOTAL DISPLAY: --->  " + difSquaresTotal);
+        console.log("SUM_CUBES TOTAL DISPLAY:   --->  " + sumCubesTotal);
+        console.log("DIF_CUBES TOTAL DISPLAY:   --->  " + difCubesTotal);
+        console.log("********************************************************");
 
         return specialFormsCheck();
     }
@@ -504,12 +785,76 @@ function RecognizableForms(poly) {
     // Used simply to check if any factors were parsed in the expression
     // -------------------------------------------------------------------------
     function factorCheck() {
-        if (factors.length > 0 ) {
+        if (factors.length > 0) {
             return true;
         }
         else {
             return false;
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Used to pull out roots from the special forms that have been found
+    // -------------------------------------------------------------------------
+    function factorSpecialForms(forms) {
+        let matrix, roots, degree;
+
+        forms.forEach(function (form) {
+            matrix = toMatrix(prepareForMatrix(form));
+            roots = FloPoly.allRoots(matrix);
+            degree = FloPoly.degree(matrix);
+
+            if (roots.length > 0) {
+                roots.forEach(function (root) {
+                    finalRoots.push(root);
+                });
+            }
+            //else {
+            //    irrationalOrComplexTerms.push(form);
+            //    for (let i = 0; i < degree; ++i) {
+            //        complexRootCount += 1;
+            //    }
+            //}
+        });
+    }
+
+    // -------------------------------------------------------------------------
+    // Returns all the factors discovered in the polynomial
+    // -------------------------------------------------------------------------
+    function parseFinalFactors() {
+        let allFactors = [];
+
+        if (factors.length > 0) {
+            factors.forEach(function (term) {
+                allFactors.push(term);
+            });
+        }
+
+        if (difSquares.length > 0) {
+            difSquares.forEach(function (term) {
+                allFactors.push(term);
+            }); 
+        }
+
+        if (difCubes.length > 0) {
+            difCubes.forEach(function (term) {
+                allFactors.push(term);
+            });
+        }
+
+        if (sumCubes.length > 0) {
+            sumCubes.forEach(function (term) {
+                allFactors.push(term);
+            });
+        }
+
+        if (irrationalOrComplexTerms.length > 0) {
+            irrationalOrComplexTerms.forEach(function (term) {
+                allFactors.push(term);
+            });
+        }
+
+        return allFactors;
     }
 
     // -------------------------------------------------------------------------
@@ -522,34 +867,175 @@ function RecognizableForms(poly) {
     function parseForms(expression) {
         let hasSquares = parseDifSquares(expression),
             hasSumCubes = parseSumCubes(expression),
-            hasDifCubes = parseDifCubes(expression);
+            hasDifCubes = parseDifCubes(expression),
+            foundSpecial = false,
+            needsFactoring = false,
+            parse,
+            matrix,
+            degree,
+            result;
+
+        if (hasSquares || hasSumCubes || hasDifCubes) {
+            foundSpecial = true;
+        }
+
+        matrix = toMatrix(prepareForMatrix(expression));
+        degree = FloPoly.degree(matrix);
+        //needsFactoring = analyzeFactorability(expression, foundSpecial);
 
         console.log(' THIS IS THE EXPRESSION THAT WAS CHECKED FOR SPECIAL FORMS:  -->' + expression);
-        let parse = Algebrite.factor(expression).toString();
-        console.log(' THIS IS AFTER the EXPRESSION HAS BEEN FACTORED --->' + parse);
 
-        // Sometimes, it will factor an 'x' out.  Do somethign about this factor
+        if (foundSpecial || isMult || degree <= 2) {
+            parse = Algebrite.factor(expression).toString();
+            console.log(' THIS IS AFTER the EXPRESSION HAS BEEN FACTORED --->' + parse);
+        }
+        else {
+            parse = Algebrite.simplify(expression).toString();
+        }
 
         if (hasSquares) {
-            difSquares.push(parse);
-            grabFactor(parse, "square");
+            difSquaresTotal.push(parse);
+            result = grabFactor(parse);
+            result.factors.forEach(function (factor) {
+                difSquares.push(factor);
+            });
+            
             console.log("DIF_SQUARES: --->  " + difSquares);
-            return [parse, true]; // short circuit
+            return { parse: result.parse, isReduced: true, preFactor: result.pre }; // short circuit
         }
         else if (hasSumCubes) {
-            sumCubes.push(parse);
-            grabFactor(parse, "cube");
+            sumCubesTotal.push(parse);
+            result = grabFactor(parse);
+            result.factors.forEach(function (factor) {
+                sumCubes.push(factor);
+            });
+            
             console.log("SUM_CUBES:   --->  " + sumCubes);
-            return [parse, true]; // short circuit
+            return { parse: result.parse, isReduced: true, preFactor: result.pre }; // short circuit
         }
         else if (hasDifCubes) {
-            difCubes.push(parse);
-            grabFactor(parse, "cube");
+            difCubesTotal.push(parse);
+            result = grabFactor(parse);
+            result.factors.forEach(function (factor) {
+                difCubes.push(factor);
+            });
+            
             console.log("DIF_CUBES:   --->  " + difCubes);
-            return [parse, true]; // short circuit
+            return { parse: result.parse, isReduced: true, preFactor: result.pre }; // short circuit
         }
 
-        return [parse, false];
+        return { parse: parse, isReduced: false, preFactor: false };
+    }
+
+    // -------------------------------------------------------------------------
+    // Decides if the expression needs to be factored.  This is mainly based on
+    // whether the the expression is a special form or a simple factor.  If the
+    // expression is a long, high degree expression, then it should be left to
+    // the next stages of the program to analyze.  Otherwise, the steps would 
+    // not be shown, and this would defeat the purpose of the program.
+    // -------------------------------------------------------------------------
+    function analyzeFactorability(expression, foundSpecial) {
+        if (foundSpecial) {
+            return true;
+        }
+
+        let wasExpanded = checkExpansion(expression);
+
+        if (wasExpanded) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    function checkExpansion(expression) {
+        let factored = Algebrite.factor(expression),
+            expanded;
+
+        factored = removeWhiteSpace(factored);
+
+        let stack = [],
+            expr = [],
+            hasParens = false;
+            parse = "";
+
+        for (let i = 0; i < factored.length; ++i) {
+            stack.push(factored[i]);
+
+            if (stack[stack.length - 1] === ")") {
+                hasParens = true;
+
+                if (factored[i + 1] !== null && factored[i + 2] !== null &&
+                    factored[i + 1] === "^") {
+                        expr.push(factored[i + 2]);
+                        expr.push(factored[i + 1]);
+                        i += 2;
+                }
+
+                expr.push(stack.pop()); // placing ')' onto expr
+
+                for (let j = stack.length - 1; stack[j] !== "("; j--) {
+                    expr.push(stack.pop());
+                }
+
+                expr.push(stack.pop()); //make sure to grab "("
+                parse = expr.reverse().join("");
+
+            }
+        }
+
+        if (!(hasParens)) {
+
+        }
+
+        expanded = removeWhiteSpace(Algebrite.run(parse).toString());
+
+        if (expression === expanded) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    // N = numRows
+    function pascalCoefficient(length) {
+        let matrix = [];
+
+        for (let i = 0; i < length; ++i) {
+            matrix[i] = new Array(i + 1);
+
+            for (let j = 0; j < i + 1; ++j) {
+                if (j === 0 || j === i) {
+                    matrix[i][j] = 1;
+                } else {
+                    matrix[i][j] = matrix[i - 1][j - 1] + matrix[i - 1][j];
+                }
+            }
+        }
+
+        return matrix[length - 1];
+    }
+
+    function pascalVariable(length, a, b) {
+        let matrix = new Array(length);
+
+        for (let i = 0; i < length; ++i) {
+            matrix[i] = Math.pow(a, length - 1 - i) * Math.pow(b, i);
+        }
+
+        return matrix;
+    }
+
+    function pascalTriangle(coeffMatrix, varMatrix) {
+        let pascal = new Array(coeffMatrix.length);
+
+        for (let i = 0; i < coeffMatrix.length; ++i) {
+            pascal[i] = coeffMatrix[i] * varMatrix[i];
+        }
+
+        return pascal;
     }
 
     // -------------------------------------------------------------------------
@@ -639,49 +1125,132 @@ function RecognizableForms(poly) {
     }
 
     // -------------------------------------------------------------------------
-    // Used to locate any factors if the user happens to enter them in this way.
-    // For example, the user might enter (x - 5) as part of expression.  
+    // This function makes sure to parse correctly when factors are involved - 
+    // these can be simple factors such as (x + 5) or complex factors such 
+    // as (x^2 + 4).  It will save the rational factors, and factor out the
+    // complex ones.  It will, however, only grab the rational factors from 
+    // either a single degree factor, or a monomial of any degree (x^2, x^3, etc.)
+    // In essence, if the user explicitly types in a factor, the program will 
+    // notice it and factor it out. NOTE also that it only factors out 
+    // irrationals if the expression being checked is of degree 2, i.e. it 
+    // contains one pair of irrational conjugates.  If a large expression w/o
+    // special forms/factors is parsed, and happens to contain nothing but 
+    // complex roots, then this is not discovered at this stage, but later 
+    // during synthetic division.
     // -------------------------------------------------------------------------
-    function parseFactor(expression) {
-        expression = removeWhiteSpace(expression);
+    function checkForFactors(expression) {
+        let expr = removeWhiteSpace(expression);
+        console.log("IN FACTOR:  " + expr);
 
-        console.log("IN FACTOR:  " + expression);
+        let matrix = toMatrix(prepareForMatrix(expr)),
+            roots = FloPoly.allRoots(matrix),
+            degree = FloPoly.degree(matrix),
+            isMono = isMonomial(matrix),
+            isComplex = hasComplex(roots, degree);
 
-        let degree = Algebrite.deg(expression),
-            index;
-
-        // careful with this... it will also treat -3 (2x + 3) as factor !!!
-        // Nevermind, that is correct.  Still, make sure to only claim the 
-        // parenthesized part
-        if (degree == 1) {
-            console.log(" HERE's THE SPECIAL FACTORS ------->>>>>>>" + specialFactors);
-            index = specialFactors.indexOf(expression);
-            if (index > -1) {
-                specialFactors.splice(index, 1);
-                return false;
-            }
-            else {
-                return true;
-            }
+        //let degree = Algebrite.deg(expr);
+        if (degree == 0) {
+            return { expr: expr, isFactor: true };
         }
-        else {
-
-        }
-
-    }
-
-    // This function makes sure to parse correctly when factors are involved
-    function checkForFactors(expr) {
-        let hasFactor = parseFactor(expr);
-
-        if (hasFactor) {
+        else if (degree == 1) {
             factors.push(expr);
-            return [expr, true];
+            finalRoots.push(roots[0]);
+            return { expr: expr, isFactor: true };
+        }
+        else if (isMono) {
+            factors.push(expr);
+            for (let i = 0; i < degree; ++i) {
+                finalRoots.push(0);
+            }
+
+            return { expr: expr, isFactor: true };
+        }
+        else if (!(isMono) && isComplex) {
+            irrationalOrComplexTerms.push(expr);
+            for (let i = 0; i < degree; ++i) {
+                complexRootCount += 1;
+            }
+
+            return { expr: expr, isFactor: true };
         }
         else {
-            return [expr, false];
+            return { expr: expr, isFactor: false };
         }
     }
+
+    // -------------------------------------------------------------------------
+    // Checks if the expression is a simple monomial
+    // -------------------------------------------------------------------------
+    function isMonomial(expr) {
+        let N = expr.length,
+            isMono = true;
+
+        if (N == 1) {
+            isMono = false;
+        }
+        else {
+            for (let i = 1; i < N; ++i) {
+                if (expr[i] != 0) {
+                    isMono = false;
+                }
+            }
+        }
+
+        return isMono;
+    }
+
+    // -------------------------------------------------------------------------
+    // Checks if the expression contains complex roots such as i or square roots
+    // based/irrational roots.  NOTE:  this function can only retrieve a single
+    // pair of these complex roots, i.e. the conjugates.  It cannot retrieve all
+    // of the complex roots of a term > degree 2 in one fell swoop, as the 
+    // FloPoly library is unstable at times when parsing for complex roots 
+    // in these cases of degree > 2.
+    // -------------------------------------------------------------------------
+    function hasComplex(roots, degree) {
+        if (degree == 2 && (roots.length == 0 || areIrrational(roots))) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Checks if the roots contain irratonal numbers
+    // -------------------------------------------------------------------------
+    function areIrrational(roots) {
+        let isIrrational = false,
+            error,
+            rounded;
+
+        const pass = 0.000000000001;
+
+        roots.forEach(function (root) {
+            if (!Number.isInteger(root) && findPrecision(root) >= 12) {
+                rounded = Math.round10(root, -1);
+                error = Math.abs(root - rounded); // checking if close to int
+                console.log("#####THE ROOT#####" + root);
+                console.log("-----ROUNDED------" + rounded);
+                console.log("*******ERROR******" + error);
+                if (error > pass) {
+                    isIrrational = true;
+                }
+            }
+        });
+
+        return isIrrational;
+    }
+
+    // -------------------------------------------------------------------------
+    // Calculates the precision of a number, if it has a decimal
+    // -------------------------------------------------------------------------
+    function findPrecision(number) {
+        let numString = number.toString();
+        return (numString.split('.')[1] || []).length;
+    }
+
+    
 
     //--------------------------------------------------------------------------
     //  Helper function used in parsing either sum or dif of cubes
@@ -723,7 +1292,7 @@ function RecognizableForms(poly) {
             }
             else if (i === finalPos) {
                 console.log("MADE IT!!!");
-                return true; 
+                return true;
             }
             else {
                 continue;
@@ -743,24 +1312,26 @@ function RecognizableForms(poly) {
 
         if (allTerms.length > 0) {
             allTerms.forEach(function (term) {
-                console.log("WHAT THE DEUCE: " + term[1]);
                 if (term[1] === false) {
                     reducedTerms.push(term[0]);
                 }
             });
 
             if (reducedTerms.length > 1) {
+                for (let i = 0; i < reducedTerms.length; ++i) {
+                    reducedTerms[i] = "(" + reducedTerms[i] + ")";
+                }
+
                 parse = reducedTerms.join("*");
-                console.log("THIS IS the compiled, joined RESULT:  WAIT FOR IT....... ---> @ :" + parse);
                 parse = Algebrite.run(parse).toString();
-                console.log("...............this is........the FINAL COUNTDOWN," +
-                    "DADADA, DA.DADA DA DA DA. ---> @ :" + parse);
+                console.log("FINAL REDUCED TERM:  " + parse);
             }
             else if (reducedTerms.length === 1) {
                 parse = reducedTerms[0];
             }
             else {
-                parse = false; // some sort of error
+                parse = false; // No reduced terms left, i.e. all factors were
+                               // discovered in RecognizableForms
             }
         }
 
@@ -793,7 +1364,7 @@ function RecognizableForms(poly) {
             if (a < 0) {
                 expr[0] = expr[0] / -gcd;
                 expr[finalPos] = expr[finalPos] / -gcd;
-            } 
+            }
             else {
                 expr[0] = expr[0] / gcd;
                 expr[finalPos] = expr[finalPos] / gcd;
@@ -819,18 +1390,35 @@ function RecognizableForms(poly) {
     }
 
     //--------------------------------------------------------------------------
-    //  Performs reduction for each expression and sub expression
+    //  Performs reduction for each expression and sub expression.  The 
+    //  reduction process is depth first, and the function itself is recursive.
+    //  Basically, each set of terms in the innermost parenthesis is parsed
+    //  first.  The parameter 'initial' is a flag to keep up with initial run
+    //  of the function.  'isReduced' keeps up with whether the term has been
+    //  parsed as a special form factor or just regular factor.  'multiplicity'
+    //  tracks the current exponentiation of the term.
     //--------------------------------------------------------------------------
-    function reduce(expression, isReduced) {
+    function reduce(expression, isReduced, multiplicity, initial) {
         console.log("EXPRESSION IN REDUCE:  " + expression);
 
         let stack = [],
             noParens = true,
             expr = [],
             tempTerms = [],
+            stackPointer = 0,
             parse = "",
             stackString = "",
-            reduceFactors;
+            reduceFactors,
+            global,
+            exp = /[\^0-9]/,
+            exponent = "";
+
+        if (initial) {
+            global = initial;
+        }
+        else {
+            global = true;
+        }
 
         expression = removeWhiteSpace(expression);
         expression = trimMultSigns(expression);
@@ -838,7 +1426,29 @@ function RecognizableForms(poly) {
         for (let i = 0; i < expression.length; ++i) {
             stack.push(expression[i]);
 
+            if (stack[stack.length - 1] === "(") {
+                global = false;
+            }
+
+            if (global) {
+                stackPointer += 1;
+            }
+
             if (stack[stack.length - 1] === ")") {
+
+                // peeking ahead for exponents
+                //if (expression[i + 1] !== null && expression[i + 2] !== null) {
+                //    if (expression[i + 1] === "^") {
+                        //expr.push(expression[i + 2]);
+                        //expr.push(expression[i + 1]);
+                        //i += 2;
+                        //multiplicity += parseInt(expression[i + 2]);
+                        //i += 2;
+                //    }
+                //}
+
+
+                expr.push(stack.pop()); // placing ')' onto expr
 
                 for (let j = stack.length - 1; stack[j] !== "("; j--) {
                     expr.push(stack.pop());
@@ -846,43 +1456,81 @@ function RecognizableForms(poly) {
 
                 expr.push(stack.pop()); //make sure to grab "("
                 parse = expr.reverse().join("");
-                parse = parseForms(parse);
-                // Make sure to make it factor out a simple '()'
 
-                if (isReduced) {
-                    tempTerms.push([parse[0], isReduced]);
-                }
-                else {
-                    tempTerms.push([parse[0], parse[1]]);
-                }
+                try {
+                    console.log(" THIS IS THE PARSE:  " + parse);
+                    if (parse[parse.length - 3] !== null && parse[parse.length - 2] !== null &&
+                        parse[parse.length - 3] === "^") {
 
-                noParens = false;
-                expr = []; // reset 
+                        tempTerms.forEach(function (term) {
+                            console.log("THIS IS THE TEMP TERM:  " + term[2]);
+                            console.log("THIS IS the EXP being used:  " + parse[parse.length - 2]);
+                            term[2] *= parse[parse.length - 2];
+                        });
+                    }
+                    else {
+                        math.parse(parse);
+                        console.log("****************INSIDE OF TRY-PARSE*************");
+                        parse = parseForms(parse);
+
+                        if (isReduced) {
+                            tempTerms.push([parse.parse, isReduced, multiplicity, global]);
+                        }
+                        //else if (parse[2]) {
+                        //    tempTerms.push([parse[2], parse[1]]);
+                        //    tempTerms.push([parse[0], true]);
+                        //}
+                        //else if (multiplicity > 0) {
+                        //    for (let k = 0; k < multiplicity; ++k) {
+                        //        tempTerms.push([parse.parse, parse.isReduced, multiplicity, global]);
+                        //    }
+                        //}                                                     |
+                        else {                                   // CHANGE HERE V //
+                            tempTerms.push([parse.parse, parse.isReduced, multiplicity, global]);
+                        }
+                    }
+                }
+                catch (error) {
+                    console.log(' ERROR PARSING IN PARENS:  =====>  ' + error);
+                }
+                finally {
+                    noParens = false;
+                    expr = []; // reset 
+                }
             }
         }
 
         console.log("STACK : " + stack);
 
         // This branch is either a final node being reduced, or an initial
-        // expression that does not contain parenthesis
+        // expression that may or may not contain parenthesis.  This section uses
+        // numerous if/else statements, but there are many conditions being 
+        // checked, so it becomes necessary
         if (noParens) {
+            parse = parseForms(expression);
+
             if (isReduced) {
-                parse = parseForms(expression);
-                reduceFactors = checkForFactors(parse[0]);
-                allTerms.push([parse[0], isReduced]);
+                allTerms.push([parse.parse, isReduced]);
             }
             else {
-                parse = parseForms(expression);
-                reduceFactors = checkForFactors(parse[0]);
-                if (parse[1]) {
-                    allTerms.push([parse[0], parse[1]]);
+                if (hasParens(parse.parse) && !(parse.isReduced)) {
+                    console.log("BRANCH:  WHEN 'isReduced' is false and 'hasParens' is TRUE ");
+                    reduce(parse.parse, false, multiplicity, initial); // start over if factorable
                 }
                 else {
-                    allTerms.push([parse[0], reduceFactors[1]]);
+                    console.log("BRANCH:  WHEN 'isReduced' and 'hasParens' are false ");
+                    reduceFactors = checkForFactors(parse.parse);
+                    if (parse.isReduced) {
+                        allTerms.push([parse.parse, parse.isReduced]);
+                    }
+                    else {
+                        allTerms.push([parse.parse, reduceFactors.isFactor]);
+                    }
                 }
+
             }
-            
-            return allTerms; 
+
+            return allTerms;
         }
         // This branch represents what has NOT been popped off the stack, i.e.
         // parts of the expression outside of a parenthesis context
@@ -891,9 +1539,29 @@ function RecognizableForms(poly) {
                 try {
                     stackString = trimMultSigns(stack.join(""));
                     if (stackString) {
+                        // Making sure to check for multiplicities
+                        if (initial && (stack[stackPointer] !== null && stack[stackPointer + 1] !== null &&
+                            stack[stackPointer] === "^")) {
+                            console.log("********************INSIDE OF INITIAL PARSING*********");
+                            exponent = parseInt(stack[stackPointer + 1]);
 
+                            tempTerms.forEach(function (term) {
+                                console.log("THIS IS THE EXP:  " + exponent);
+                                console.log(" AND THIS IS THE TERM:  " + term[2]);
+                                term[2] *= exponent;
+                                term[3] = false;
+                            });
+
+                            stackString = stackString.slice(0, -2);
+                        }
+
+                        console.log("ATTEMPTING TO PARSE LEFTOVER STACK STRING:  " + stackString);
                         math.parse(stackString);
-                        tempTerms.push([stackString, isReduced]);
+                        reduceFactors = checkForFactors(stackString);
+                        console.log("THIS MEANS THE LEFTOVER STACK STRING WAS PARSED. " +
+                            "REDUCE FACTORS - > " + reduceFactors.expr + "and "
+                            + reduceFactors.isFactor);
+                        tempTerms.push([stackString, reduceFactors.isFactor, multiplicity, initial]);
                     }
                 }
                 catch (error) {
@@ -901,29 +1569,76 @@ function RecognizableForms(poly) {
                 }
             }
 
-            console.log("THIS IS THE TEMP TERMS @#@#!!!!:  " + tempTerms);
+            console.log("TEMP TERMS in 'REDUCE':  " + tempTerms);
+            tempTerms = renewMultiplicity(tempTerms);
+            console.log("RENEWED TEMP TERMS:  " + tempTerms);
 
             // Each term is recursively reduced.  The second param passed to
             // reduce keeps up with whether it is a special form/factor
             tempTerms.forEach(function (term) {
-                reduce(term[0], term[1]); 
+                reduce(term[0], term[1], term[2], term[3]);
             });
-
+            
             return allTerms;
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // At the end of reducing a group of factors, this function checks the 
+    // multiplicity of each factor.  If the multiplicity is > 1, then it resets
+    // the array of factors with the added terms.  For example, if (x+2)^2 is 
+    // parsed in the polynomial, then 'x+2' will be recorded with a multiplicity
+    // of 2.  Therefore, 2 of these terms will be recognized in terms of finding
+    // the finalRoots/factors.  The total multiplicity is accumulated throughout
+    // parsing the polynomial terms.
+    // -------------------------------------------------------------------------
+    function renewMultiplicity(tempTerms) {
+        let renew = [],
+            fix,
+            times,
+            multiplicity;
+
+        tempTerms.forEach(function (term) {
+            fix = removeWhiteSpace(term[0]);
+
+            console.log("^^^^^^^^^^^^^^ ROLL CALLL^^^^^^^^^^^^^^^^^^");
+            console.log("THIS SHOULD BE THE PAREN" + fix[fix.length - 3]);
+            console.log("THIS SHOULD BE THE CARET" + fix[fix.length - 2]);
+            console.log("THIS SHOULD BE THE EXPONENT" + fix[fix.length - 1]);
+            console.log("THIS SHOULD be the REGEX  " + /[0-9]/.test(fix[fix.length - 1]));
+
+            if (fix[fix.length - 3] !== null && fix[fix.length - 2] !== null &&
+                fix[fix.length - 1] !== null && fix[fix.length - 3] === ")" &&
+                fix[fix.length - 2] === "^" && /[0-9]/.test(fix[fix.length - 1])) {
+                times = parseInt(fix[fix.length - 1]);
+                fix = fix.slice(0, -2);
+            }
+            else {
+                times = 1;
+            }
+
+            multiplicity = term[2] * times;
+
+            for (let i = 0; i < multiplicity; ++i) {
+                renew.push([fix, term[1], 1, term[3]]);
+            }
+        });
+
+        return renew;
     }
 
     // -------------------------------------------------------------------------
     // Pulls out factors from recognized forms so that it can be distinguished 
     // whether the factor comes from a sp. form or is a genuine factor.
     // -------------------------------------------------------------------------
-    function grabFactor(term, type) {
+    function grabFactor(term) {
         let expression = term,
             stack = [],
             expr = [],
             temp = [],
-            parse = "",
-            termLength;
+            items = [],
+            preFactor = "",
+            parse = "";
 
         expression = removeWhiteSpace(expression);
         expression = trimMultSigns(expression);
@@ -937,39 +1652,30 @@ function RecognizableForms(poly) {
                     expr.push(stack.pop());
                 }
 
-                //expr.push(stack.pop()); //make sure to grab "("
-                expr.splice(0, 1); // remove beginning paren
+                stack.pop(); //remove "(" from stack
+                expr.splice(0, 1); // remove paren from expr
                 parse = expr.reverse().join("");
                 temp.push(parse);
                 expr = []; // reset 
             }
         }
 
-        console.log("THese are the TEMP TERMS IN  'isFACTORED:  $%$%$%" + temp);
-        termLength = temp.length - 2;
+        console.log("These are the TEMP TERMS IN  'grabFactor':  " + temp);
+        console.log("This is the STACK in 'grabFactor':  " + stack);
 
-
-        if (type === "square") {
-            specialFactors.push(temp[termLength]);
-            specialFactors.push(temp[termLength + 1]);
+        for (let i = 0; i < temp.length; ++i) {
+            items[i] = temp[i];
+            temp[i] = "(" + temp[i] + ")";
         }
-        else if (type === "cube") {
-            specialFactors.push(temp[termLength]);
-            irrationalOrComplexTerms.push(temp[termLength + 1]);
-        }
-    }
 
-    //--------------------------------------------------------------------------
-    //  Determines if first term in expression is negative.  Algebrite only 
-    //  factors out a -1 when the first term is negative, so this must be 
-    //  considered when parsing.
-    //--------------------------------------------------------------------------
-    function firstTermNegative(stack) {
-        if (stack[0] === "-" && stack.length === 1) {
-            return true;
+        let special = temp.join("");
+
+        if (stack.length > 0) {
+            preFactor = stack.join("");
+            return { pre: preFactor, factors: items, parse: special };
         }
         else {
-            return false;
+            return { pre: false, factors: items, parse: special };
         }
     }
 }
@@ -1433,7 +2139,7 @@ function SyntheticDivisionDisplay(syn, results) {
     //  param in 'displayHelper' signals whether this is final display or not.
     //--------------------------------------------------------------------------
     this.display = function () {
-        displayHelper(syn, results, false);
+        displayHelper(syn, results, false, false);
     }
 
     //--------------------------------------------------------------------------
@@ -1441,7 +2147,15 @@ function SyntheticDivisionDisplay(syn, results) {
     //  in 'displayHelper' signals whether this is final display or not.
     //--------------------------------------------------------------------------
     this.finalDisplay = function () {
-        displayHelper(syn, results, true);
+        displayHelper(syn, results, true, false);
+    }
+
+    //--------------------------------------------------------------------------
+    //  Handles the display when all roots have been found, but there are still
+    //  some irrational roots remaining. 
+    //--------------------------------------------------------------------------
+    this.alternateDisplay = function () {
+        displayHelper(syn, results, false, true);
     }
 
     //--------------------------------------------------------------------------
@@ -1465,7 +2179,7 @@ function SyntheticDivisionDisplay(syn, results) {
     //  Aids with display since both 'display' and 'finalDisplay' contain 
     //  similar protocols.
     //--------------------------------------------------------------------------
-    function displayHelper(syn, results, isFinal) {
+    function displayHelper(syn, results, isFinal, isAlternate) {
         // Recap section and reinitializing
         totalDisplay(syn.getPosRootCount(), syn.getNegRootCount(),
             $("#syn-total-pos"), $("#syn-total-neg"));
@@ -1496,17 +2210,33 @@ function SyntheticDivisionDisplay(syn, results) {
         else if (results.remainder === 0) {
             $("#syn-found-root").removeClass("hidden");
         }
+        else if (isAlternate) {
+            let pos = syn.getPosRootCount()[0],
+                neg = syn.getNegRootCount()[0];
+
+            $("#syn-irrational").removeClass("hidden");
+            displayCounts(pos, neg);
+
+            if (pos + neg > 2) {
+                $("#syn-failure").removeClass("hidden");
+                displayAsBlock(syn.getRationalRoots(), $("#syn-rational-roots"));
+                $("#SYNTHETIC-to-FINAL").addClass("hidden");
+
+            }
+            else {
+                $(".syn-alt-summary").removeClass("hidden");
+                displayAsBlock(syn.getRationalRoots(), $("#syn-rational-roots"));
+                displayAsBlock(syn.getIrrationalRoots(), $("#syn-irrational-roots"));
+            }
+            
+        }
         else { // still roots left
             $("#syn-no-root").removeClass("hidden");
         }
 
-        MathJax.Hub.Queue(["Typeset", MathJax.Hub, "syn-total-pos,    \
-                                                    syn-total-neg,    \
-                                                    syn-init-drawing, \
-                                                    syn-2nd-drawing,  \
-                                                    syn-3rd-drawing,  \
-                                                    syn-final-drawing,\
-                                                    syn-rational-roots"]);
+        MathJax.Hub.Queue(["Typeset", MathJax.Hub, "syn-total-pos, syn-total-neg," +
+            "syn-init-drawing, syn-2nd-drawing, syn-3rd-drawing, syn-final-drawing," +
+            "syn-rational-roots, syn-irrational-roots, syn-quadratic"]);
     }
 
     //--------------------------------------------------------------------------
@@ -1522,6 +2252,21 @@ function SyntheticDivisionDisplay(syn, results) {
         }
 
         return position;
+    }
+
+    //--------------------------------------------------------------------------
+    //  Displays the amount of possible comlex roots left
+    //--------------------------------------------------------------------------
+    function displayCounts(pos, neg) {
+        if (pos > 0 && neg > 0) {
+            $("#syn-irr-left").text(pos + " positive and " + neg + " negative ");
+        }
+        else if (pos > 0) {
+            $("#syn-irr-left").text(pos + " positive ");
+        }
+        else {
+            $("#syn-irr-left").text(neg + " negative ");
+        }
     }
 
     //--------------------------------------------------------------------------
@@ -1666,6 +2411,7 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
         negRoots = possibleRoots.neg,
         irrationalRoots = [],
         rationalRoots = [],
+        factors = [],
         guessedIds = [],
         remainingIds = [],
         polynomial = poly,
@@ -1715,18 +2461,26 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
         return rationalRoots;
     }
 
+    this.getFactors = function () {
+        return parseFactors();
+    }
+
     this.getPolynomial = function () {
         return polynomial;
     }
-
     // END ACCESSORS
 
     //--------------------------------------------------------------------------
     //  Used to set the initial ID values for the possible roots in the html
     //--------------------------------------------------------------------------
     function initialRootsSetup(posRoots, negRoots, posParentId, negParentId) {
-        rootsSetup(posRoots, posParentId, "Pos");
-        rootsSetup(negRoots, negParentId, "Neg");
+        if (posRoots.length > 0) {
+            rootsSetup(posRoots, posParentId, "Pos");
+        }
+
+        if (negRoots.length > 0) {
+            rootsSetup(negRoots, negParentId, "Neg");
+        }
     }
 
     //--------------------------------------------------------------------------
@@ -1759,12 +2513,50 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
     }
 
     //--------------------------------------------------------------------------
+    //  Returns the factor version of all roots that have been discovered
+    //--------------------------------------------------------------------------
+    function parseFactors() {
+        let allFactors = [],
+            rounded;
+
+        rationalRoots.forEach(function (root) {
+            if (root > 0) {
+                allFactors.push("(x+" + root + ")");
+            }
+            else {
+                allFactors.push("(x" + root + ")");
+            }
+            
+        });
+
+        if (irrationalRoots.length > 0) {
+            irrationalRoots.forEach(function (root) {
+                rounded = Math.round10(root, -6);
+
+                if (root > 0) {
+                    allFactors.push("(x+" + rounded + ")");
+                }
+                else {
+                    allFactors.push("(x" + rounded + ")");
+                }
+            })
+        }
+
+        return allFactors;
+    }
+
+    //--------------------------------------------------------------------------
     //  Sets all of the 'onClick' handlers for each root available.  The handlers
     //  are fired based on which numbers are clicked.
     //--------------------------------------------------------------------------
     function setAsyncRootHandlers(polynomial) {
         remainingIds.forEach(function ($id) {
-            let root = $id.data("root");
+            let root = $id.data("root"),
+                rzt,
+                reduced,
+                bothRoots = [],
+                allRoots = [];
+
 
             let currentClick = function () {
                 return new Promise(function (resolve, reject) {
@@ -1772,14 +2564,42 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
                         let results = synDivide(polynomial, root),
                             finished = false;
 
-                        if (results.foundRoot) {
-                            rationalRoots.push(results.r);
-                        }
-
                         guessedIds.push($id);
                         remainingIds.splice(remainingIds.indexOf($id), 1);
 
-                        if (hasFinished()) {
+                        if (results.foundRoot) {
+                            rationalRoots.push(results.r);
+
+                            reduced = toPolynomial(results.bottom);
+                            rzt = new RationalZeroTest(reduced);
+                            bothRoots = rzt.getAllReducedRoots();
+
+                            if (results.r > 0) {
+                                decrementCount(posRootCount);
+                            }
+                            else {
+                                decrementCount(negRootCount);
+                            }
+
+                            posRoots = bothRoots.pos;
+                            console.log("THESE ARE THE POS ROOTS:  " + posRoots);
+                            negRoots = bothRoots.neg;
+                            console.log("THESE ARE THE NEG ROOTS" + negRoots);
+                            allRoots = posRoots.concat(negRoots);
+                            console.log("THESE ARE ALL OF THE ROOTS" + allRoots);
+                            modifyIds(allRoots);
+
+                        }
+
+                        if (hasIrrationalRoots()) {
+                            let quad = quadraticFormula(results.top);
+                            irrationalRoots.push(quad.pos);
+                            irrationalRoots.push(quad.neg);
+
+                            new SyntheticDivisionDisplay(_this, results).alternateDisplay();
+                            finished = true;
+                        }
+                        else if (hasFinished()) {
                             new SyntheticDivisionDisplay(_this, results).finalDisplay();
                             finished = true;
                         }
@@ -1828,10 +2648,59 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
     }
 
     //--------------------------------------------------------------------------
+    //  Lowers the total number of possible roots whenever a root is discovered
+    //--------------------------------------------------------------------------
+    function decrementCount(rootCount) {
+        for (let i = 0; i < rootCount.length; ++i) {
+            rootCount[i] -= 1;
+
+            if (rootCount[i] === -1) {
+                rootCount.pop();
+            }
+        }
+    }
+
+    //--------------------------------------------------------------------------
+    //  Changes the remaining/guessed Id's after a root has been discovered
+    //--------------------------------------------------------------------------
+    function modifyIds(roots) {
+        let stillRoot = false;
+
+        for (let i = 0; i < remainingIds.length; ++i) {
+            for (let j = 0; j < roots.length; ++j) {
+                console.log("CURRENT ROOT #### " + roots[j]);
+                if (roots[j] === remainingIds[i].data("root")) {
+                    stillRoot = true;
+                }
+            }
+
+            if (!stillRoot) {
+                guessedIds.push(remainingIds[i]);
+                remainingIds.splice(i,1);
+            }
+
+            stillRoot = false;
+        }
+    }
+
+    //--------------------------------------------------------------------------
     //  Determines if the user has found all the possible rational roots.
     //--------------------------------------------------------------------------
     function hasFinished() {
         if (remainingIds.length === 0 || rationalRoots.length === maxRoots) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    //--------------------------------------------------------------------------
+    // Returns true if all guesses have been exhausted, but the amount of 
+    // total roots is higher than the guesses.
+    //--------------------------------------------------------------------------
+    function hasIrrationalRoots() {
+        if (remainingIds.length === 0 && rationalRoots.length < maxRoots) {
             return true;
         }
         else {
@@ -1884,6 +2753,27 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
     }
 
     //--------------------------------------------------------------------------
+    //  Performs the quadratic formula in the event that all rational roots 
+    //  have been exhausted, and it is known that complex roots exist.
+    //--------------------------------------------------------------------------
+    function quadraticFormula(matrix) {
+        let a = matrix[0],
+            b = matrix[1],
+            c = matrix[2],
+            positive,
+            negative;
+
+        console.log("##################### A   " + a);
+        console.log("##################### B   " + b);
+        console.log("##################### C   " + c);
+
+        positive = (-b + Math.sqrt((b * b) - (4 * a * c))) / (2 * a);
+        negative = (-b - Math.sqrt((b * b) - (4 * a * c))) / (2 * a);
+
+        return { pos: positive, neg: negative };
+    }
+    
+    //--------------------------------------------------------------------------
     //  Sets up the SYNTHETIC stage so that it can be repeated.  Mainly, this 
     //  function erases the drawings, resets the html, and removes all active
     //  click handlers.
@@ -1926,7 +2816,10 @@ var main = function () {
 
     // Helps cut down on the total amount of HTTP requests.
     if (top.location.pathname === '/Tutorial') {
-        let polynomial,         // POLYNOMIAL for all stages
+        let initPolynomial,     // Initial from back end
+            polynomial,         // Reduced polynomial for all stages
+            curriedRoots,       // From RECOGNIZABLEFORMS
+            curriedFactors,     // From RECOGNIZABLEFORMS
             allPossibleRoots,   // For RZT         
             numberOfRoots;      // For DESCARTES
 
@@ -1934,12 +2827,21 @@ var main = function () {
 
         // Grabbing the data attribute set from the server, which was stored by
         // the Model class.  This is quicker than contacting the server.
-        polynomial = ($("#initialBackendPolyString").data("poly"));
-        let recogForms = new RecognizableForms(polynomial),
+        initPolynomial = ($("#initialBackendPolyString").data("poly"));
+        let recogForms = new RecognizableForms(initPolynomial),
             stage = new Stage(FORMS);
-        new RecognizableFormsDisplay(recogForms).display();
-        stage.markStageCompleted(FORMS);
-        changeDisplay(stage.getCurrentStage(), FORMS);
+        new RecognizableFormsDisplay(initPolynomial, recogForms).display();
+
+        polynomial = recogForms.getReduced();
+
+        if (polynomial) {
+            curriedRoots = recogForms.getFinalRoots();
+            curriedFactors = recogForms.getFinalFactors();
+            stage.markStageCompleted(FORMS);
+            changeDisplay(stage.getCurrentStage(), FORMS);
+            console.log("CURRIED ROOTS:  " + curriedRoots);
+            console.log("CURRIED FACTORS:  " + curriedFactors);
+        }
 
         // REDO FORMS stage when tab clicked - essentially, start over.
         $("#FORMS-tab").on("click", function () {
@@ -2015,17 +2917,18 @@ var main = function () {
             stage.setStage(stage.getCurrentStage(),
                 changeDisplay(stage.getCurrentStage(), SYNTHETIC));
 
-            finalClickHandler(polynomial, syn, stage);
+            finalClickHandler(polynomial, syn, stage, initPolynomial, curriedRoots, curriedFactors);
         });
 
         // Redo SYNTHETIC stage if have made it to this stage
         $("#SYNTHETIC-tab").on("click", function () {
-            if (stage.isCompleted(SYNTHETIC)) {
-                let syn = new SyntheticDivision(polynomial, allPossibleRoots, numberOfRoots);
+            if (stage.isCompleted(FINAL)) {
+                //let syn = new SyntheticDivision(polynomial, allPossibleRoots, numberOfRoots);
                 stage.setStage(stage.getCurrentStage(),
                     changeDisplay(stage.getCurrentStage(), SYNTHETIC));
 
-                finalClickHandler(polynomial, syn, stage);
+                //finalClickHandler(polynomial,
+                //    syn, stage, initPolynomial, curriedRoots, curriedFactors);
             }
         });
 
@@ -2155,9 +3058,11 @@ function selectStageHeading(stage) {
 }
 
 // -----------------------------------------------------------------------------
-// Handles the transition from SYNTHETIC to FINAL stages.
+// Handles the transition from SYNTHETIC to FINAL stage.
 // -----------------------------------------------------------------------------
-function finalClickHandler(polynomial, syn, stage) {
+function finalClickHandler(polynomial, syn, stage, init, curriedRoots, curriedFactors) {
+    console.log("THE CURRIED ROOTS: " + curriedRoots);
+    console.log("THE CURRIED FACTORS:  " + curriedFactors);
     // Resets click handler
     $("#SYNTHETIC-to-FINAL").off("click");
 
@@ -2167,13 +3072,25 @@ function finalClickHandler(polynomial, syn, stage) {
                 changeDisplay(stage.getCurrentStage(), FINAL));
         }
         else {
-            displayAsBlock(polynomial, $("#final-poly"));
-            displayAsBlock(syn.getRationalRoots(), $("#final-roots"));
+            let combinedRoots = curriedRoots.concat(syn.getRationalRoots()),
+                combinedFactors = curriedFactors.concat(syn.getFactors()).join("");
+
+            if (syn.getIrrationalRoots().length > 0) {
+                for (let i = 0; i < syn.getIrrationalRoots().length; ++i) {
+                    combinedRoots.push(Math.round10(syn.getIrrationalRoots()[i], -6));
+                }
+            }
+
+            displayAsBlock(init, $("#final-poly"));
+            displayAsBlock(combinedFactors, $("#final-factors"));
+            displayAsBlock(combinedRoots, $("#final-roots"));
             stage.markStageCompleted(FINAL);
             stage.setStage(stage.getCurrentStage(),
                 changeDisplay(stage.getCurrentStage(), FINAL));
 
-            MathJax.Hub.Queue(["Typeset", MathJax.Hub, "final-poly, final-roots"]);
+            MathJax.Hub.Queue(["Typeset", MathJax.Hub,  "final-poly," +
+                                                        "final-factors, " +
+                                                        "final-roots"]);
         }
     });
 }
@@ -2232,18 +3149,6 @@ function toPolynomial(matrix) {
     poly = new Polynomial(reversed);
 
     return poly.toString();
-}
-
-// -----------------------------------------------------------------------------
-// Makes sure that any terms entered by user are combined, if possible.  This is
-// only for display; it only displays the initial user polynomial.
-// -----------------------------------------------------------------------------
-function makeInitDisplayable(polynomial) {
-    let simplified = math.simplify(math.parse(polynomial)).toString();
-    console.log("SIMPLIFIED FOR DISPLAY:  " + simplified);
-    let corrected = removeMultSigns(simplified);
-    console.log("CORRECTED FOR DISPLAY: " + corrected);
-    return corrected;
 }
 
 // -----------------------------------------------------------------------------
@@ -2336,12 +3241,26 @@ function sanitizeInput(string) {
 // converted to a matrix.
 // -----------------------------------------------------------------------------
 function prepareForMatrix(poly) {
-    let parse = math.simplify(poly).toString();
-    console.log("PARSE:  " + parse);
-    parse = removeWhiteSpace(parse);
-    let corrected = sanitizeInput(parse);
+    try {
+        let parse = math.parse(poly).toString();
+        //console.log("PARSE:  " + parse);
+        let expanded = combineLikeTerms(parse);
+
+        return expanded;
+    }
+    catch (error) {
+        console.log("*ERROR* - cannot parse for matrix:  " + error);
+    }
+
+}
+
+// Takes a string form of polynomial and expands it
+function combineLikeTerms(poly) {
+    let parse = removeWhiteSpace(poly),
+        corrected = sanitizeInput(parse);
     console.log("CORRECTED IN PREP: " + corrected);
-    let expanded = Algebrite.run(corrected);
+
+    let expanded = Algebrite.run(corrected).toString();
     console.log("EXPANDED IN PREP: " + expanded);
 
     return expanded;

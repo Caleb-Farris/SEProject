@@ -127,76 +127,137 @@ describe("InputValidator - CLASS TEST", function () {
 // statements anyway.
 describe("RecognizableForms - CLASS TEST", function () {
 
+    /*
     let poly1 = "(x^2-4)((x-8)(x + 2)(3x^3 - 81))",
         poly2 = "x^3+8",
         poly3 = "-2x^3-16",
         poly4 = "(x+2)(2x^3-4x^2+6x)",
-        poly5 = "2x^2+4x-2",
-        poly6 = "(x+2)^2 - 4",
+        poly5 = "2x^4+4x^3-2x^2",
+        poly6 = "(((x+2)^2(x+4))^2)^2",
         poly7 = "2x+7-8(x+2)",
-        poly8 = "(x-3)(x+2)+(x-1)", // WORKED!!! yesssssss
-        poly9 = "x^4-3x^3+7x^2-8x", // Make it get factors
+        poly8 = "(x-3)(x+2)+(x-1)", 
+        poly9 = "x^4-3x^3+7x^2-8x",
         poly10 = "x(x-7+8x(4-x))",
+        poly11 = "(2x-3)^2(x+4)^3", 
+        poly12 = "((2x+4)^2(x-8))",
+        poly13 = "(x^2-4x+2)^2",
+        poly14 = "x^2-3x(x-3)^2",
+        poly15 = "(x^3+8)^2",
+        poly16 = "((2x+4)^2(x-5))",
+        poly17 = "(x^2+4)^2",
+        poly18 = "(x-3)(x+2)",
+        poly19 = "x^2-7",
+        poly20 = "x^4+3x^3+2x^2+x+1",
+        poly21 = "(x^2-4)^2(x^3+8)",
+        poly22 = "x^4+x^3-11x^2-5x",
+        parsed;
+    */
+
+    let poly1 = "x^2-4",
+        poly2 = "x^3-8",
+        poly3 = "2x^3+16",
+        poly4 = "(x+3)(x-2)",
+        poly5 = "x^2-7",
+        poly6 = "(((x+2)^2(x+4))^2)^2",
+        poly7 = "2x^4-6x^3+12x^2-4x",
+        poly8 = "(x^2-4)((x-8)(x + 2)(3x^3 - 81))",
         parsed;
 
     it("should be able to parse expression for difference of two squares", function () {
-        let forms = new RecognizableForms(poly10);
-        //parsed = forms.getDifTwoSquares();
-        //expect(parsed).toBe("x^2-4");
+        let forms = new RecognizableForms(poly1);
+        parsed = forms.getDifSquares();
+        expect(parsed).toContain("x+2");
+        expect(parsed).toContain("x-2");
     });
 
     it("should be able to parse expression for difference of two cubes", function () {
-        //let forms = new RecognizableForms(poly2);
-        //parsed = forms.getDifTwoCubes();
-        //expect(parsed).toBe("x^3-8");
+        let forms = new RecognizableForms(poly2);
+        parsed = forms.getDifCubes();
+        expect(parsed).toContain("x-2");
+        expect(parsed).toContain("x^2+2x+4");
     });
 
     it("should be able to parse expression for sum of two cubes", function () {
-        //let forms = new RecognizableForms(poly3);
-        //parsed = forms.getSumTwoCubes();
-        //expect(parsed).toBe("x^3+8");
+        let forms = new RecognizableForms(poly3);
+        parsed = forms.getSumCubes();
+        expect(parsed).toContain("x+2");
+        expect(parsed).toContain("x^2-2x+4");
     });
 
     it("should be able to parse expression for already factored forms, i.e. x+2", function () {
-        //let forms = new RecognizableForms(poly4);
-        //parsed = forms.getFactorable();
-        //expect(parsed).toBe("x+2");
+        let forms = new RecognizableForms(poly4);
+        parsed = forms.getFactors();
+        expect(parsed).toContain("x-2");
+        expect(parsed).toContain("x+3");
     });
 
-    it("should be able to parse when expression has irrational roots", function () {
-        //let forms = new RecognizableForms(poly5);
-        //parsed = forms.isIrrational();
-        //expect(parsed).toBe("x^2+2x-1");
+    it("should be able to parse when expression has complex roots", function () {
+        let forms = new RecognizableForms(poly5);
+        parsed = forms.getIrrationalOrComplexTerms();
+        expect(parsed).toContain("x^2-7");
     });
 
     it("should be able to parse multiplicities", function () {
-        //let forms = new RecognizableForms(poly6);
+        let forms = new RecognizableForms(poly6),
+            factorCheck = [],
+            count1 = 0,
+            count2 = 0;
+        parsed = forms.getFactors();
+
+        parsed.forEach(function (factor) {
+            if (factor === "x+2") {
+                count1 += 1; 
+            }
+            else if (factor === "x+4") {
+                count2 += 1;
+            }
+        });
+
+        expect(count1).toEqual(8);
+        expect(count2).toEqual(4);
     });
 
-    it("should be able to parse expression for difference of two squares", function () {
-        //let forms = new RecognizableForms(poly7);
+    it("should be able to reduce polynomial of common factors", function () {
+        let forms = new RecognizableForms(poly7);
+        parsed = forms.getReduced();
+        parsed = removeWhiteSpace(parsed);
+        expect(parsed).toBe("x^3-3x^2+6x-2");
+    });
+
+    it("should be able to handle combinations of all test cases above", function () {
+        let forms = new RecognizableForms(poly8);
+        parsed = forms.getFactors();
+        expect(parsed).toContain("x-8");
+        expect(parsed).toContain("x+2");
+
+        parsed = forms.getDifCubes();
+        expect(parsed).toContain("x-3");
+        expect(parsed).toContain("x^2+3x+9");
+         
+        parsed = forms.getDifSquares();
+        expect(parsed).toContain("x+2");
+        expect(parsed).toContain("x-2");
     });
 });
 
 describe("RecognizableFormsDisplay - CLASS TEST", function () {
-    setFixtures('<p id="formsInitPoly"></p>' +
-        '<p id="formsDisplay"></p>' +
-        '<p id="formsReduced"></p>');
+    setFixtures('<p id="forms-init-poly"></p>' +
+        '<p class="forms-content"></p>');
 
-    //let poly1 = "x^2-4",
-    //    forms = new RecognizableForms(poly1),
-    //    display = new RecognizableFormsDisplay(forms).display();
+    let poly1 = "x^2-4",
+        forms = new RecognizableForms(poly1),
+        display = new RecognizableFormsDisplay(poly1, forms).display();
 
     it("should be able to display the parsed polynomial", function () {
-        //expect($("#formsInitPoly")).toBe("x^2-4");
+        //expect($("#forms-init-poly")).toHaveText("x^2-4");
     });
 
     it("should be able to display the reduced forms within the polynomial", function () {
-        //expect($("#formsDisplay")).toBe"x^2-4";
+        //expect($(".forms-content")).toHaveText("x-2, x+2");
     });
 
     it("should be able to display the new, reduced polynomial", function () {
-        //expect($("#formsDisplay")).toBe("(x+2)(x-2)");
+        //expect($("#formsDisplay")).toBe(""); //completely reduced in this case
     });
 });
 

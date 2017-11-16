@@ -31,16 +31,21 @@
                     <div class="recognizable-forms-content">
                         <p class="p-items">
                             The first step is to recogize any forms that can be factored
-                            out of the equation.  These forms must be <em>memorized</em>.
+                            out of the equation.  These forms include the difference of 
+                            two squares $(a^2-b^2)$, difference of two cubes 
+                            $(a^3-b^3)$, and sum of two cubes $(a^3+b^3)$.  Any 
+                            common terms should also be factored out of the polynomial.
                         </p>
+                 
                         <p class="p-items">
-                            Given the following polynomial:
+                            Given the polynomial:
                         </p>
-                        <p class="p-items" id="formsInitPoly"></p>
-                        <p class="p-items">We can pull out the following forms:</p>
-                        <p id="formsDisplay" class="p-items"></p>
-                        <p class="p-items">Upon removing these elements, we are left with the remaining:</p>
-                        <p id="formsReduced" class="p-items"></p>
+                        <p class="p-items" id="forms-init-poly"></p>
+
+                        <div id="forms-content" class="forms-content">
+
+                        </div>
+
                         <div class="input-group pull-right">
                             <button id="FORMS-to-RZT" class="btn btn-primary btn">Continue</button>
                         </div>
@@ -208,9 +213,39 @@
                                 Synthetic division can no longer be performed.  The roots
                                 found are: 
                             </p>
+                            <p id="syn-irrational" class="p-items hidden syn-reinit">
+                                All choices have been exhausted.  According to Descartes'
+                                Rule, there are still <b id="syn-irr-left"></b> roots left. 
+                                When this situation is encountered, the roots must be
+                                complex roots.  The only solution is to perform the
+                                quadratic equation. <br />
+                                That is, when $a \ne 0$, then there can be two solutions 
+                                to $ax^2 + bx + c = 0$ and they are
+                                $$x = {-b \pm \sqrt{b^2-4ac} \over 2a}.$$
+                            </p>
+                            <p id="syn-failure" class="p-items hidden syn-reinit">
+                                Unfortunately, the quadratic equation can only be 
+                                performed on polynomials of degree 2 (or those factored
+                                into degree 2).  This polynomial can only be factored
+                                using numerical root finding methods, which is beyond 
+                                the scope of this tutorial.  Please 
+                                <a asp-page="/Index">click here</a> to enter another 
+                                polynomial.
+                            </p>
+                            <p id="syn-quadratic" class="p-items syn-draw-erasable">
+
+                            </p>
+                            <p class="p-items hidden syn-reinit syn-alt-summary">
+                                Now, all roots have been discovered, first the rational:
+                            </p>
+
                             <p id="syn-rational-roots" class="p-items syn-draw-erasable">
 
                             </p>
+                            <p class="p-items hidden syn-reinit syn-alt-summary">
+                                And the irrational:
+                            </p>
+
                             <p id="syn-irrational-roots" class="p-items syn-draw-erasable">
 
                             </p>
@@ -229,11 +264,20 @@
 
                         </p>
                         <p class="p-items">
-                            And the following rational roots have been discovered:
+                            The polynomial was broken down into the following factors:
+                        </p>
+                        <p id="final-factors" class="p-items">
+
+                        </p>
+
+                        <p class="p-items">
+                            Which means the following roots have been discovered:
                         </p>
                         <p id="final-roots" class="p-items">
 
                         </p>
+
+
                         <p class="p-items">
                             In summary, any recognized forms are extracted from
                             the polynomial.  Next, the Rational Zero Test is used 
