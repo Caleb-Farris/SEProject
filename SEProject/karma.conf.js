@@ -19,6 +19,7 @@ module.exports = function(config) {
         'wwwroot/lib/jquery/dist/jquery.js',
         'wwwroot/lib/bootstrap/dist/js/bootstrap.js',
         'wwwroot/lib/flo-poly/dist/flo-poly.js',
+        'wwwroot/lib/fraction.js/fraction.js',
         'wwwroot/lib/polynomial.js/polynomial.js',
         'wwwroot/lib/mathjs/dist/math.js',
         'wwwroot/lib/Algebrite_test/Algebrite-master/dist/algebrite.bundle-for-browser.js',

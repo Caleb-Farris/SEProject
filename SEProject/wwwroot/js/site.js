@@ -24,6 +24,9 @@ const REGEX = /[^0-9x^()+*/-]/,
         ".final-content"
     ];
 
+// for rational coefficients
+Polynomial.setField("Q");
+
 //------------------------------------------------------------------------------
 //                              CLASS:  STAGE
 //
@@ -306,7 +309,8 @@ function RecognizableFormsDisplay(poly, forms) {
             reduced = forms.getReduced(),
             hasForms = forms.getHasForms(),
             hasFactors = forms.getHasFactors(),
-            hasBeenReduced = false;
+            hasBeenReduced = false,
+            wasOnlyReduced = false;
 
         if (hasForms && hasFactors) {
             displayFull(difSquares, difCubes, sumCubes, factors);
@@ -320,6 +324,10 @@ function RecognizableFormsDisplay(poly, forms) {
             displayOnlyFactors(factors);
             hasBeenReduced = true;
         }
+        else if (forms.wasOnlyReduced()) {
+            displayOnlyReduced(reduced);
+            wasOnlyReduced = true;
+        }
         else {
             displayNone();
         }
@@ -331,6 +339,9 @@ function RecognizableFormsDisplay(poly, forms) {
 
         if (hasBeenReduced && reduced) {
             displayFinal(reduced, finalRoots);
+        }
+        else if (wasOnlyReduced && reduced) {
+            // do nothing, already displayed reduced form.
         }
         else if (hasBeenReduced && !(reduced)) {
             displayFinished();
@@ -377,6 +388,18 @@ function RecognizableFormsDisplay(poly, forms) {
             'the polynomial and pull out the following factors:  </p >');
 
         displayFactors(factors);
+    }
+
+    // -------------------------------------------------------------------------
+    // For the BRANCH:  No special forms nor factors, but has factored out a 
+    // constant.
+    // -------------------------------------------------------------------------
+    function displayOnlyReduced(reduced) {
+        $(".forms-content").append('<p class="p-items">' +
+            'We cannot pull out any special forms.  However, we can simplify ' +
+            'the polynomial to a reduced form.</p >');
+
+        $(".forms-content").append('\\[' + reduced + '\\]');
     }
 
     // -------------------------------------------------------------------------
@@ -460,7 +483,8 @@ function RecognizableFormsDisplay(poly, forms) {
 // terms that have already been factored.
 // -----------------------------------------------------------------------------
 function RecognizableForms(poly) {
-    let polynomial,
+    let init,
+        polynomial,
         factors = [],
         sumCubes = [],
         sumCubesTotal = [],
@@ -480,6 +504,7 @@ function RecognizableForms(poly) {
         isMult;
 
     // CONSTRUCTOR
+    init = removeWhiteSpace(poly);
     polynomial = formsSimplify(poly);
     hasForms = depthFirstParse(polynomial);
     hasFactors = factorCheck();
@@ -489,6 +514,10 @@ function RecognizableForms(poly) {
     console.log("#####################REDUCED_POLYNOMIAL#################" + reduced);
     console.log("*************************FINAL_ROOTS*********************" + finalRoots);
     console.log("************************FINAL_FACTORS*********************" + finalFactors);
+
+    this.getInit = function () {
+        return init;
+    }
 
     this.getPolynomial = function () {
         return polynomial;
@@ -558,6 +587,10 @@ function RecognizableForms(poly) {
         return hasFactors;
     }
 
+    this.wasOnlyReduced = function () {
+        return checkOnlyReduced();
+    }
+
     // -------------------------------------------------------------------------
     // Chooses which library to perform simplification - Algebrite or math.js.
     // This is not a perfect solution, but is adequate.
@@ -599,6 +632,17 @@ function RecognizableForms(poly) {
         }
 
         return hasParens;
+    }
+
+    function checkOnlyReduced() {
+        if (!specialFormsCheck() && !factorCheck() && complexRootCount == 0 &&
+            init !== removeWhiteSpace(reduced)) 
+        {
+            return true;
+        }
+        else {
+            return false;
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -1704,14 +1748,14 @@ function RationalZeroTestDisplay(RZT) {
         if (arraysAreEqual(RZT.getPositiveRoots(), RZT.getReducedPositiveRoots())) {
             $("#skip-pq").addClass("hidden");
             setOpeningBlockDelimeter($pq);
-            iterateAndDisplay(RZT.getPositiveRoots(), $pq);
+            iterateAndDisplay(RZT.getPositiveRoots(), $pq, true);
             setClosingBlockDelimeter($pq);
         }
         else {
             setOpeningBlockDelimeter($pq);
             setOpeningBlockDelimeter($reduced);
-            iterateAndDisplay(RZT.getPositiveRoots(), $pq);
-            iterateAndDisplay(RZT.getReducedPositiveRoots(), $reduced);
+            iterateAndDisplay(RZT.getPositiveRoots(), $pq, true);
+            iterateAndDisplay(RZT.getReducedPositiveRoots(), $reduced, true);
             setClosingBlockDelimeter($pq);
             setClosingBlockDelimeter($reduced);
         }
@@ -1729,10 +1773,10 @@ function RationalZeroTestDisplay(RZT) {
     function displayPQEquation(pValues, qValues) {
         // Displaying initial laTex, plus p/q 
         $("#rzt-p-over-q").append("\\[ {p\\over q} = {");
-        iterateAndDisplay(pValues, $("#rzt-p-over-q"));
+        iterateAndDisplay(pValues, $("#rzt-p-over-q"), false);
         // Displaying the line in between numerator and denominator
         $("#rzt-p-over-q").append("\\over");
-        iterateAndDisplay(qValues, $("#rzt-p-over-q"));
+        iterateAndDisplay(qValues, $("#rzt-p-over-q"), false);
         // Final, closing laTex
         $("#rzt-p-over-q").append("}\\]");
     }
@@ -1741,13 +1785,32 @@ function RationalZeroTestDisplay(RZT) {
     // Iterates through each possible root discovered by the RZT and displays it
     // with +- through laTex formatting.
     // -----------------------------------------------------------------------------
-    function iterateAndDisplay(roots, $id) {
+    function iterateAndDisplay(roots, $id, notEquation) {
         for (var i = 0; i < roots.length; ++i) {
             if (i === roots.length - 1) {
-                $id.append("\\pm" + roots[i]);
+                if (roots[i] instanceof Fraction) {
+                    $id.append("\\pm" + roots[i].toLatex());
+                }
+                else {
+                    $id.append("\\pm" + roots[i]);
+                }
+            }
+            else if (i !== 0 && i % 12 == 0 && notEquation) {
+                if (roots[i] instanceof Fraction) {
+                    $id.append("\\pm" + roots[i].toLatex() + ", \\\\");
+                }
+                else {
+                    $id.append("\\pm" + roots[i] + ", \\\\");
+                }
             }
             else {
-                $id.append("\\pm" + roots[i] + ", ");
+                if (roots[i] instanceof Fraction) {
+                    $id.append("\\pm" + roots[i].toLatex() + ", ");
+                }
+                else {
+                    $id.append("\\pm" + roots[i] + ", ");
+                }
+                
             }
         }
     }
@@ -1828,7 +1891,8 @@ function RationalZeroTest(poly) {
     // ease of display in RZTFlow.
     // -----------------------------------------------------------------------------
     function reducedPosPOverQ() {
-        let possibleRoots = new Set();
+        let possibleRoots = new Set(),
+            isDuplicate = false;
 
         if (pValues.length > 0 && qValues.length > 0) {
             pValues.forEach(function (P) {
@@ -1837,7 +1901,19 @@ function RationalZeroTest(poly) {
                         possibleRoots.add(P / Q);
                     }
                     else {
-                        possibleRoots.add(Math.round10((P / Q), -4));
+                        // have to check for duplicates w/ fractions.  Apparently
+                        // JS Sets do not work with this.
+                        possibleRoots.forEach(function (term) {
+                            if (term == new Fraction(P, Q)) {
+                                isDuplicate = true;
+                            }
+                        });
+
+                        if (!isDuplicate) {
+                            possibleRoots.add(Fraction(P, Q));
+                        }
+
+                        isDuplicate = false;
                     }
                 });
             });
@@ -1864,7 +1940,7 @@ function RationalZeroTest(poly) {
                         possibleRoots.push(P / Q);
                     }
                     else {
-                        possibleRoots.push(Math.round10((P / Q), -4));
+                        possibleRoots.push(Fraction(P, Q));
                     }
                 });
             });
@@ -1881,19 +1957,42 @@ function RationalZeroTest(poly) {
     // -----------------------------------------------------------------------------
     function allReducedPOverQ() {
         let possiblePosRoots = new Set(),
-            possibleNegRoots = new Set();
+            possibleNegRoots = new Set(),
+            isDuplicate = false;
 
         if (pValues.length > 0 && qValues.length > 0) {
             pValues.forEach(function (P) {
                 qValues.forEach(function (Q) {
                     if ((P / Q) % 1 === 0) {
                         possiblePosRoots.add(P / Q);   // Adds the positive version
-                        possibleNegRoots.add(-(P / Q)) // Adds the negative version
+                        possibleNegRoots.add(-(P / Q)); // Adds the negative version
                         // Given these numbers are NOT in the set
                     }
-                    else {
-                        possiblePosRoots.add(Math.round10((P / Q), -4));   
-                        possibleNegRoots.add(Math.round10(-(P / Q), -4)) 
+                    else {                        // have to check for duplicates w/ fractions.  Apparently
+                        // JS Sets do not work with this.
+                        possiblePosRoots.forEach(function (term) {
+                            if (term == new Fraction(P, Q)) {
+                                isDuplicate = true;
+                            }
+                        });
+
+                        if (!isDuplicate) {
+                            possiblePosRoots.add(Fraction(P, Q));
+                        }
+
+                        isDuplicate = false;
+
+                        possibleNegRoots.forEach(function (term) {
+                            if (term == new Fraction(P, Q)) {
+                                isDuplicate = true;
+                            }
+                        });
+
+                        if (!isDuplicate) {
+                            possibleNegRoots.add(Fraction(-P, Q));
+                        }
+
+                        isDuplicate = false;
                     }
 
                 });
@@ -2163,7 +2262,12 @@ function SyntheticDivisionDisplay(syn, results) {
     //--------------------------------------------------------------------------
     function cancelRoots(guessedIds) {
         guessedIds.forEach(function ($id) {
-            $id.text("\\(\\cancel{" + $id.data("root") + "}\\)");
+            if ($id.data("frac")) {
+                $id.text("\\(\\cancel{" + $id.data("frac") + "}\\)");
+            }
+            else {
+                $id.text("\\(\\cancel{" + $id.data("root") + "}\\)");
+            }
         });
     }
 
@@ -2203,11 +2307,11 @@ function SyntheticDivisionDisplay(syn, results) {
         drawSynthetic(results, positions, degree);
 
         // Handling conclusion 
-        if (results.remainder === 0 && isFinal) {
+        if (results.remainder == 0 && isFinal) {
             $("#syn-summary").removeClass("hidden");
             displayAsBlock(syn.getRationalRoots(), $("#syn-rational-roots"));
         }
-        else if (results.remainder === 0) {
+        else if (results.remainder == 0) {
             $("#syn-found-root").removeClass("hidden");
         }
         else if (isAlternate) {
@@ -2219,8 +2323,9 @@ function SyntheticDivisionDisplay(syn, results) {
 
             if (pos + neg > 2) {
                 $("#syn-failure").removeClass("hidden");
-                displayAsBlock(syn.getRationalRoots(), $("#syn-rational-roots"));
-                $("#SYNTHETIC-to-FINAL").addClass("hidden");
+                displayAsBlock("\\text{Rational roots discovered:  }" + syn.getRationalRoots(),
+                    $("#syn-rational-roots"));
+                $(".syn-early-end").addClass("hidden");
 
             }
             else {
@@ -2331,10 +2436,13 @@ function SyntheticDivisionDisplay(syn, results) {
     function initDrawing(results, positions, $initId) {
         console.log("POSITIONS:  " + positions);
         console.log("TERMS:  " + getTerms(results.top));
-        let pad = results.top.length - 1; 
+        let pad = results.top.length - 1,
+            r;
+
+        r = checkFraction(results.r);
 
         $initId.text("\\[\\begin{array} {c|" + positions + "}" 
-            + results.r + "&" + getTerms(results.top) + "\\\\ \
+            + r + "&" + getTerms(results.top) + "\\\\ \
             & \\downarrow" + padLine(pad) + "\\\\ \
             \\hline & \\color{red}{" + results.bottom[0] + "}" + padLine(pad) + " \\end{array}\\]");
     }
@@ -2344,10 +2452,13 @@ function SyntheticDivisionDisplay(syn, results) {
     //--------------------------------------------------------------------------
     function step2Drawing(results, positions, $step2Id) {
         let midPad = results.top.length - 2,
-            bottomPad = results.top.length - 1;
+            bottomPad = results.top.length - 1,
+            r;
+
+        r = checkFraction(results.r);
 
         $step2Id.text("\\[\\begin{array} {c|" + positions + "}"
-            + results.r + "&" + getTerms(results.top) + "\\\\ \
+            + r + "&" + getTerms(results.top) + "\\\\ \
             & & \\color{red}{" + results.middle[0] + "}" + padLine(midPad) + "\\\\ \
             \\hline & " + results.bottom[0] + padLine(bottomPad) + " \\end{array}\\]");
     }
@@ -2356,10 +2467,13 @@ function SyntheticDivisionDisplay(syn, results) {
     //  Handles the 3rd synthetic division drawing
     //--------------------------------------------------------------------------
     function step3Drawing(results, positions, $step3Id) {
-        let pad = results.top.length - 2;
+        let pad = results.top.length - 2,
+            r;
+
+        r = checkFraction(results.r);
 
         $step3Id.text("\\[\\begin{array} {c|" + positions + "}"
-            + results.r + "&" + getTerms(results.top) + "\\\\ \
+            + r + "&" + getTerms(results.top) + "\\\\ \
             & & " + results.middle[0] + padLine(pad) + "\\\\ \
             \\hline & " + results.bottom[0] + " & \\color{red}{" + results.bottom[1] + "}" + padLine(pad) + "\\end{array}\\]");
     }
@@ -2369,9 +2483,12 @@ function SyntheticDivisionDisplay(syn, results) {
     //  a degree 1 polynomial.
     //--------------------------------------------------------------------------
     function step3ModifiedDrawing(results, positions, $step3Id) {
+        let r;
+
+        r = checkFraction(results.r);
 
         $step3Id.text("\\[\\begin{array} {c|" + positions + "}"
-            + results.r + "&" + getTerms(results.top) + "\\\\ \
+            + r + "&" + getTerms(results.top) + "\\\\ \
             & & " + results.middle[0] + "\\\\ \
             \\hline & " + results.bottom[0] + " & \\color{red}{" + results.remainder + "}\\end{array}\\]");
     }
@@ -2380,9 +2497,12 @@ function SyntheticDivisionDisplay(syn, results) {
     //  Handles the final synthetic division drawing
     //--------------------------------------------------------------------------
     function finalDrawing(results, positions, $finalId) {
+        let r;
+
+        r = checkFraction(results.r); 
 
         $finalId.text("\\[\\begin{array} {c|" + positions + "}"
-            + results.r + " & " + getTerms(results.top) + "\\\\ \
+            + r + " & " + getTerms(results.top) + "\\\\ \
             \\ & & " + getTerms(results.middle) + "\\\\ \
             \\hline & " + getTerms(results.bottom) + " & \\color{red}{" + results.remainder + "}\\end{array}\\]");
     }
@@ -2393,6 +2513,18 @@ function SyntheticDivisionDisplay(syn, results) {
     function resetDisplay() {
         $("#syn-found-root, #syn-no-root").addClass("hidden");
         $(".syn-draw-content").removeClass("hidden");
+    }
+
+    //--------------------------------------------------------------------------
+    //  Changes r for latex display if necessary  
+    //--------------------------------------------------------------------------
+    function checkFraction(r) {
+        if (r instanceof Fraction) {
+            return r.toLatex();
+        }
+        else {
+            return r;
+        }
     }
 }
 
@@ -2414,6 +2546,7 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
         factors = [],
         guessedIds = [],
         remainingIds = [],
+        idsLeft = 0,
         polynomial = poly,
         _this = this; // keeps a reference to the current object
 
@@ -2487,15 +2620,28 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
     //  A simple helper function for initialRootsSetup
     //--------------------------------------------------------------------------
     function rootsSetup(roots, parentId, id) {
+
         displayInline(id + ":", $(parentId));
         for (let i = 0; i < roots.length; ++i) {
-            $("<span>\\(" + roots[i] + "\\)</span>").appendTo(parentId).attr({
-                "id": id + i,
-                "class": "span-space",
-                "data-root":  roots[i] // makes displaying later easier
-            });
+            if (roots[i] instanceof Fraction) {
+                $("<span>\\(" + roots[i].toLatex() + "\\)</span>").appendTo(parentId).attr({
+                    "id": id + i,
+                    "class": "span-space",
+                    "data-root": roots[i],
+                    "data-frac": roots[i].toLatex() // makes displaying later easier
+
+                });
+            }
+            else {
+                $("<span>\\(" + roots[i] + "\\)</span>").appendTo(parentId).attr({
+                    "id": id + i,
+                    "class": "span-space",
+                    "data-root": roots[i]
+                });
+            }
 
             remainingIds.push($("#" + id + i));
+            idsLeft += remainingIds.length;
         }
     }
 
@@ -2552,6 +2698,7 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
     function setAsyncRootHandlers(polynomial) {
         remainingIds.forEach(function ($id) {
             let root = $id.data("root"),
+                frac = $id.data("frac"),
                 rzt,
                 reduced,
                 bothRoots = [],
@@ -2561,14 +2708,25 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
             let currentClick = function () {
                 return new Promise(function (resolve, reject) {
                     $id.on("click.synth", function () {
-                        let results = synDivide(polynomial, root),
+                        let results,
                             finished = false;
 
-                        guessedIds.push($id);
-                        remainingIds.splice(remainingIds.indexOf($id), 1);
+                        if (frac) {
+                            results = synDivide(polynomial, Fraction(root));
+                        }
+                        else {
+                            results = synDivide(polynomial, root);
+                        }
 
                         if (results.foundRoot) {
-                            rationalRoots.push(results.r);
+                            //remainingIds.splice(remainingIds.indexOf($id), 1);
+
+                            if (frac) {
+                                rationalRoots.push(frac);
+                            }
+                            else {
+                                rationalRoots.push(results.r);
+                            }
 
                             reduced = toPolynomial(results.bottom);
                             rzt = new RationalZeroTest(reduced);
@@ -2588,7 +2746,11 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
                             allRoots = posRoots.concat(negRoots);
                             console.log("THESE ARE ALL OF THE ROOTS" + allRoots);
                             modifyIds(allRoots);
-
+                        }
+                        else {
+                            guessedIds.push($id);
+                            remainingIds.splice(remainingIds.indexOf($id), 1);
+                            idsLeft -= 1;
                         }
 
                         if (hasIrrationalRoots()) {
@@ -2669,14 +2831,15 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
         for (let i = 0; i < remainingIds.length; ++i) {
             for (let j = 0; j < roots.length; ++j) {
                 console.log("CURRENT ROOT #### " + roots[j]);
-                if (roots[j] === remainingIds[i].data("root")) {
+                if (roots[j] == remainingIds[i].data("root")) {
                     stillRoot = true;
                 }
             }
 
             if (!stillRoot) {
                 guessedIds.push(remainingIds[i]);
-                remainingIds.splice(i,1);
+                remainingIds.splice(i, 1);
+                idsLeft -= 1;
             }
 
             stillRoot = false;
@@ -2687,7 +2850,7 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
     //  Determines if the user has found all the possible rational roots.
     //--------------------------------------------------------------------------
     function hasFinished() {
-        if (remainingIds.length === 0 || rationalRoots.length === maxRoots) {
+        if (idsLeft === 0 || rationalRoots.length === maxRoots) {
             return true;
         }
         else {
@@ -2722,23 +2885,53 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
             r = root,
             remainder;
 
-        for (let i = 0; i <= N; ++i) {
-            if (i === 0) {
-                bottom.push(top[i]);
-                middle.push(bottom[i] * r);
+        if (r instanceof Fraction) {
+            for (let i = 0; i <= N; ++i) {
+                if (i === 0) {
+                    bottom.push(Fraction(top[i]));
+                    middle.push(r.mul(bottom[i]));
+                }
+                else if (i == N) {
+                    bottom.push(middle[i - 1].add(top[i]));
+                }
+                else {
+                    bottom.push(middle[i - 1].add(top[i]));
+                    middle.push(r.mul(bottom[i]));
+                }
             }
-            else if (i == N) {
-                bottom.push(top[i] + middle[i - 1]);
+        }
+        else {
+            for (let i = 0; i <= N; ++i) {
+                if (i === 0) {
+                    bottom.push(top[i]);
+                    middle.push(bottom[i] * r);
+                }
+                else if (i == N) {
+                    bottom.push(top[i] + middle[i - 1]);
+                }
+                else {
+                    bottom.push(top[i] + middle[i - 1]);
+                    middle.push(bottom[i] * r);
+                }
             }
-            else {
-                bottom.push(top[i] + middle[i - 1]);
-                middle.push(bottom[i] * r);
+        }
+
+        // Cleaning up matrices if fractions
+        
+        if (r instanceof Fraction) {
+            for (let i = 0; i < middle.length; ++i) {
+                middle[i] = middle[i].toLatex();
+            }
+
+            for (let i = 0; i < bottom.length; ++i) {
+                bottom[i] = bottom[i].toLatex();
             }
         }
 
         remainder = bottom.pop();
 
-        if (remainder === 0) { foundRoot = true; }
+        if (remainder == 0) { foundRoot = true; }
+        
 
         // Returns all details for display later
         return {
@@ -2910,14 +3103,25 @@ var main = function () {
 //##################################SYNTHETIC###################################
 
         $("#DESCARTES-to-SYNTHETIC").on("click", function () {
-            let syn = new SyntheticDivision(polynomial, allPossibleRoots, numberOfRoots);
-            // NOTE:  Display classes created individually based on user action
-            // from within SyntheticDivision class.
-            stage.markStageCompleted(SYNTHETIC);
-            stage.setStage(stage.getCurrentStage(),
-                changeDisplay(stage.getCurrentStage(), SYNTHETIC));
+            if (stage.isCompleted(SYNTHETIC)) {
+                stage.setStage(stage.getCurrentStage(),
+                    changeDisplay(stage.getCurrentStage(), SYNTHETIC));
+            }
+            else {
+                console.log("###ALL POSSIBLE ROOTS AFTER SYNDIV###:  " + allPossibleRoots.pos + "next " + allPossibleRoots.neg);
+                console.log("###NUMBER OF ROOTS AFTER SYNDIV###:  " + numberOfRoots.pos + "next " + numberOfRoots.neg);
 
-            finalClickHandler(polynomial, syn, stage, initPolynomial, curriedRoots, curriedFactors);
+                let syn = new SyntheticDivision(polynomial, allPossibleRoots, numberOfRoots);
+                // NOTE:  Display classes created individually based on user action
+                // from within SyntheticDivision class.
+
+                stage.markStageCompleted(SYNTHETIC);
+                stage.setStage(stage.getCurrentStage(),
+                    changeDisplay(stage.getCurrentStage(), SYNTHETIC));
+
+                finalClickHandler(polynomial, syn, stage, initPolynomial, curriedRoots, curriedFactors);
+            }
+
         });
 
         // Redo SYNTHETIC stage if have made it to this stage
@@ -3107,7 +3311,7 @@ function arraysAreEqual(arrayA, arrayB) {
     arrayB.sort();
 
     for (var i = 0; i < arrayA.length; ++i) {
-        if (arrayA[i] !== arrayB[i]) return false;
+        if (arrayA[i] != arrayB[i]) return false;
     }
     return true;
 }

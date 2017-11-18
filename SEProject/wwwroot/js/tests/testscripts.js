@@ -161,10 +161,12 @@ describe("RecognizableForms - CLASS TEST", function () {
         poly6 = "(((x+2)^2(x+4))^2)^2",
         poly7 = "2x^4-6x^3+12x^2-4x",
         poly8 = "(x^2-4)((x-8)(x + 2)(3x^3 - 81))",
+        poly9 = "(x^3+8)^2",
         parsed;
 
+    
     it("should be able to parse expression for difference of two squares", function () {
-        let forms = new RecognizableForms(poly1);
+        let forms = new RecognizableForms(poly9);
         parsed = forms.getDifSquares();
         expect(parsed).toContain("x+2");
         expect(parsed).toContain("x-2");
@@ -259,6 +261,7 @@ describe("RecognizableFormsDisplay - CLASS TEST", function () {
     it("should be able to display the new, reduced polynomial", function () {
         //expect($("#formsDisplay")).toBe(""); //completely reduced in this case
     });
+    */
 });
 
 //############################# RATIONAL_ZERO_TEST #############################
@@ -302,19 +305,19 @@ describe("RationalZeroTest - CLASS TEST", function () {
 
     it("should make the positive possible roots available - for later display", function () {
         expect(rzt.getPositiveRoots).toHaveBeenCalled();
-        expect(positiveRoots).toEqual([.5, 1, 1, 1.5, 2, 3, 3, 6]);
+        expect(positiveRoots).toEqual([Fraction(1,2), 1, 1, Fraction(3,2), 2, 3, 3, 6]);
     });
 
     it("should reduce the possible positive roots - for later display", function () {
         expect(rzt.getReducedPositiveRoots).toHaveBeenCalled();
-        expect(reducedPositiveRoots).toEqual([.5, 1, 1.5, 2, 3, 6]);
+        expect(reducedPositiveRoots).toEqual([Fraction(1,2), 1, Fraction(3, 2), 2, 3, 6]);
     });
 
     it("should reduce ALL possible roots - for later display", function () {
         expect(rzt.getAllReducedRoots).toHaveBeenCalled();
         expect(allReducedRoots).toEqual({
-            pos: [.5, 1, 1.5, 2, 3, 6],
-            neg: [-.5, -1, -1.5, -2, -3, -6]
+            pos: [Fraction(1,2), 1, Fraction(3,2), 2, 3, 6],
+            neg: [Fraction(-1,2), -1, Fraction(-3,2), -2, -3, -6] 
         });
     });
 });
