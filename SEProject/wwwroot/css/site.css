@@ -41,6 +41,10 @@ body {
     padding-left:  20px;
 }
 
+.small-font {
+    font-size:  .8em;
+ }
+
 .tutorial {
     margin-top:  25px;
 }

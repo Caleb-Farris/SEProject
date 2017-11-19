@@ -24,7 +24,7 @@ const REGEX = /[^0-9x^()+*/-]/,
         ".final-content"
     ];
 
-// for rational coefficients
+// for rational coefficients with the Polynomial.js library
 Polynomial.setField("Q");
 
 //------------------------------------------------------------------------------
@@ -61,6 +61,15 @@ function Stage(initialStage) {
     // Used to mark the stage as completed once it is reached 
     this.markStageCompleted = function (stage) {
         completed[stage] = true;
+        if (stage > FORMS) {
+            $(".list-group-item:nth-child(" + (stage) + ")").append(
+                "<i class='glyphicon glyphicon-ok pull-right'></i>");
+        }
+
+        if (stage === FINAL) {
+            $(".list-group-item:nth-child(" + (stage + 1) + ")").append(
+                "<i class='glyphicon glyphicon-ok pull-right'></i>");
+        }
     }
 
     // INITIALIZER
@@ -220,7 +229,6 @@ function InputValidator() {
             console.log("ALL ROOTS:  " + roots);
             console.log("TEST LENGTH:  " + rootTest);
             console.log("TEST 0 EVAL:  " + zeroRootTest);
-            alert("Wait a sec...");
 
             // If roots are returned from allRoots(), then rational roots exist
             if (degree > 3 && (rootTest > 0 || zeroRootTest == 0) || hasRational(roots)) {
@@ -350,7 +358,11 @@ function RecognizableFormsDisplay(poly, forms) {
             displayNull();
         }
 
-        MathJax.Hub.Queue(["Typeset", MathJax.Hub, "forms-init-poly, forms-content"]);
+        // Delayed just a minute amount in case first /Tutorial is not ready
+        setTimeout(function () {
+            MathJax.Hub.Queue(["Typeset", MathJax.Hub, "forms-init-poly, forms-content"]);
+        }, 50);
+        
     }
 
     // -------------------------------------------------------------------------
@@ -417,7 +429,7 @@ function RecognizableFormsDisplay(poly, forms) {
     function displayFinished() {
         $(".forms-content").append('<p class="p-items">' +
             'The polynomial has been reduced to its lowest form.  No further ' +
-            'stages are necessary. <a href="http://localhost:53945/Index"> Click here</a> to ' +
+            'stages are necessary. <a href="/Index"> Click here</a> to ' +
             'enter another polynomial. </p > ');
         $("#FORMS-to-RZT").addClass("hidden");
     }
@@ -1748,7 +1760,7 @@ function RationalZeroTestDisplay(RZT) {
         if (arraysAreEqual(RZT.getPositiveRoots(), RZT.getReducedPositiveRoots())) {
             $("#skip-pq").addClass("hidden");
             setOpeningBlockDelimeter($pq);
-            iterateAndDisplay(RZT.getPositiveRoots(), $pq, true);
+            iterateAndDisplay(RZT.getReducedPositiveRoots(), $pq, true);
             setClosingBlockDelimeter($pq);
         }
         else {
@@ -1901,10 +1913,12 @@ function RationalZeroTest(poly) {
                         possibleRoots.add(P / Q);
                     }
                     else {
+                        //possibleRoots.add(Fraction(P, Q));
+                        
                         // have to check for duplicates w/ fractions.  Apparently
                         // JS Sets do not work with this.
                         possibleRoots.forEach(function (term) {
-                            if (term == new Fraction(P, Q)) {
+                            if (term instanceof Fraction && term.equals(Fraction(P, Q))) {
                                 isDuplicate = true;
                             }
                         });
@@ -1914,6 +1928,7 @@ function RationalZeroTest(poly) {
                         }
 
                         isDuplicate = false;
+                        
                     }
                 });
             });
@@ -1968,14 +1983,14 @@ function RationalZeroTest(poly) {
                         possibleNegRoots.add(-(P / Q)); // Adds the negative version
                         // Given these numbers are NOT in the set
                     }
-                    else {                        // have to check for duplicates w/ fractions.  Apparently
+                    else {                        //possiblePosRoots.add(Fraction(P, Q));                        //possibleNegRoots.add(Fraction(-P, Q));                                                // have to check for duplicates w/ fractions.  Apparently
                         // JS Sets do not work with this.
                         possiblePosRoots.forEach(function (term) {
-                            if (term == new Fraction(P, Q)) {
+                            if (term instanceof Fraction && term.equals(Fraction(P, Q))) {
                                 isDuplicate = true;
                             }
                         });
-
+                        
                         if (!isDuplicate) {
                             possiblePosRoots.add(Fraction(P, Q));
                         }
@@ -1983,7 +1998,7 @@ function RationalZeroTest(poly) {
                         isDuplicate = false;
 
                         possibleNegRoots.forEach(function (term) {
-                            if (term == new Fraction(P, Q)) {
+                            if (term instanceof Fraction && term.equals(Fraction(-P, Q))) {
                                 isDuplicate = true;
                             }
                         });
@@ -1993,6 +2008,7 @@ function RationalZeroTest(poly) {
                         }
 
                         isDuplicate = false;
+                        
                     }
 
                 });
@@ -2663,23 +2679,43 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
     //--------------------------------------------------------------------------
     function parseFactors() {
         let allFactors = [],
+            r,
+            correct,
+            index,
             rounded;
 
         rationalRoots.forEach(function (root) {
-            if (root > 0) {
-                allFactors.push("(x+" + root + ")");
+            if (root.toString().indexOf("{") > -1) { // a hack, but works
+                r = root.toString();
+                if (r.indexOf("-") > -1) {
+                    index = r.indexOf("-");
+                    corrected = r.slice(index + 1, r.length);
+                    allFactors.push("(x+" + corrected + ")");
+                }
+                else {
+                    allFactors.push("(x-" + r + ")");
+                }
             }
             else {
-                allFactors.push("(x" + root + ")");
+                r = -root;
+                if (r > 0) {
+                    allFactors.push("(x+" + r + ")");
+                }
+                else if (r < 0) {
+                    allFactors.push("(x" + r + ")");
+                }
+                else { // shouldn't be the case, but just in case
+                    allFactors.push("(x)")
+                }
             }
-            
         });
 
         if (irrationalRoots.length > 0) {
             irrationalRoots.forEach(function (root) {
                 rounded = Math.round10(root, -6);
+                r = -rounded;
 
-                if (root > 0) {
+                if (r > 0) {
                     allFactors.push("(x+" + rounded + ")");
                 }
                 else {
@@ -2701,6 +2737,7 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
                 frac = $id.data("frac"),
                 rzt,
                 reduced,
+                deg,
                 bothRoots = [],
                 allRoots = [];
 
@@ -2729,6 +2766,7 @@ function SyntheticDivision(poly, possibleRoots, numberRoots) {
                             }
 
                             reduced = toPolynomial(results.bottom);
+                            updateReduced(reduced);
                             rzt = new RationalZeroTest(reduced);
                             bothRoots = rzt.getAllReducedRoots();
 
@@ -3032,6 +3070,7 @@ var main = function () {
             curriedFactors = recogForms.getFinalFactors();
             stage.markStageCompleted(FORMS);
             changeDisplay(stage.getCurrentStage(), FORMS);
+            updateReduced(polynomial);
             console.log("CURRIED ROOTS:  " + curriedRoots);
             console.log("CURRIED FACTORS:  " + curriedFactors);
         }
@@ -3059,6 +3098,7 @@ var main = function () {
                 stage.markStageCompleted(RZT);
                 stage.setStage(stage.getCurrentStage(),
                     changeDisplay(stage.getCurrentStage(), RZT));
+                
                 allPossibleRoots = rational.getAllReducedRoots(); // for use later
             }
         });
@@ -3086,6 +3126,7 @@ var main = function () {
                 stage.markStageCompleted(DESCARTES);
                 stage.setStage(stage.getCurrentStage(),
                     changeDisplay(stage.getCurrentStage(), DESCARTES));
+
                 numberOfRoots = descartes.getDescartes();  // for use later
             }
         });
@@ -3108,9 +3149,6 @@ var main = function () {
                     changeDisplay(stage.getCurrentStage(), SYNTHETIC));
             }
             else {
-                console.log("###ALL POSSIBLE ROOTS AFTER SYNDIV###:  " + allPossibleRoots.pos + "next " + allPossibleRoots.neg);
-                console.log("###NUMBER OF ROOTS AFTER SYNDIV###:  " + numberOfRoots.pos + "next " + numberOfRoots.neg);
-
                 let syn = new SyntheticDivision(polynomial, allPossibleRoots, numberOfRoots);
                 // NOTE:  Display classes created individually based on user action
                 // from within SyntheticDivision class.
@@ -3468,6 +3506,23 @@ function combineLikeTerms(poly) {
     console.log("EXPANDED IN PREP: " + expanded);
 
     return expanded;
+}
+
+//------------------------------------------------------------------------------
+//  Updates the reduced polynomial on the left side of screen
+//------------------------------------------------------------------------------
+function updateReduced(update) {
+    let matrix = toMatrix(prepareForMatrix(update)),
+        degree = FloPoly.degree(matrix);
+
+    if (degree > 0) {
+        $("#panel-reduced").text("$" + update + "$");
+    }
+    else {
+        $("#panel-reduced").text("FINISHED");
+        $("#panel-reduced").append("<i class='glyphicon glyphicon-ok pull-right'></i>");
+    }
+    
 }
 
 // -----------------------------------------------------------------------------

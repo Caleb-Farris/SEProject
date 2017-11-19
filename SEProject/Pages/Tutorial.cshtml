@@ -12,12 +12,40 @@
                 <p id="FORMS-tab" class="list-group-item active">
                     Recognizable Forms
                 </p>
-                <p id="RZT-tab" class="list-group-item">Rational Zero Test</p>
-                <p id="DESCARTES-tab" class="list-group-item">Descartes' Rule</p>
-                <p id="SYNTHETIC-tab" class="list-group-item">Synthetic Division</p>
-                <p id="FINAL-tab" class="list-group-item">Final</p>
+                <p id="RZT-tab" class="list-group-item">
+                    Rational Zero Test
+                </p>
+                <p id="DESCARTES-tab" class="list-group-item">
+                    Descartes' Rule
+                </p>
+                <p id="SYNTHETIC-tab" class="list-group-item">
+                    Synthetic Division
+                </p>
+                <p id="FINAL-tab" class="list-group-item">
+                    Final
+                </p>
             </div>
+
+            <div class="panel panel-primary">
+                <div class="panel-heading">
+                    <h4 class="panel-title">Polynomial</h4>
+                </div>
+                <div class="panel-body small-font">
+                    $@Model.Poly$
+                </div>
+            </div>
+
+            <div class="panel panel-primary">
+                <div class="panel-heading">
+                    <h4 class="panel-title">Reduced Polynomial</h4>
+                </div>
+                <div id="panel-reduced" class="panel-body small-font">
+                    N/A
+                </div>
+            </div>
+
         </div>
+
         <div class="col-lg-9">
 
             <div class="panel panel-primary">
@@ -30,11 +58,23 @@
 
                     <div class="recognizable-forms-content">
                         <p class="p-items">
+                            We will go over the steps required to factor a polynomial. 
+                            You are free to visit any previously completed steps by
+                            clicking on the completed tab, denoted by a 
+                            <span class="glyphicon glyphicon-ok"></span>.
+                        </p>
+                       
+                        <p class="p-items">
                             The first step is to recogize any forms that can be factored
-                            out of the equation.  These forms include the difference of 
-                            two squares $(a^2-b^2)$, difference of two cubes 
-                            $(a^3-b^3)$, and sum of two cubes $(a^3+b^3)$.  Any 
-                            common terms should also be factored out of the polynomial.
+                            out of the equation.  These forms include: 
+                            $$ \text{Difference of two squares} \rightarrow a^2-b^2 \\ 
+                            \text{Difference of two cubes} \rightarrow a^3-b^3 \\
+                            \text{Sum of two cubes} \rightarrow a^3+b^3 \\
+                            \text{Perfect squares} \rightarrow a^2\pm ab+b^2 $$ 
+                            
+                            Any common terms should also be factored out of the polynomial.
+                            The goal is to simplify the polynomial as much as possible 
+                            before moving on to the next steps.
                         </p>
                  
                         <p class="p-items">
@@ -161,9 +201,10 @@
                         <div class="syn-draw-content hidden">
                             <p id="syn-step1" class="p-items">
                                 The root, r, is placed in the section to the left.  
-                                Each coefficient of the polynomial is also written 
-                                to the right.  A preliminary step is to always drop 
-                                the first term.
+                                Each coefficient of the polynomial is written 
+                                to the right, and if any terms are missing, you must 
+                                use a 0 for that term.  A preliminary step is always 
+                                to drop the first term.
                             </p>
                             <p id="syn-init-drawing" class="p-items syn-draw-erasable">
 
